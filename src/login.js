@@ -137,7 +137,7 @@ function Login() {
         err.message.includes('API route not found')
       ) {
         errorMessage =
-          'Cannot reach the local backend. In a terminal run: cd backend && npm start (port 5000), then restart the frontend with npm start.';
+          'Cannot reach the local backend. In a terminal run: cd backend && npm start (port 5001), then restart the frontend with npm start.';
       } else if (err.message) {
         errorMessage = err.message;
       }

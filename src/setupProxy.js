@@ -1,6 +1,6 @@
 const { createProxyMiddleware } = require("http-proxy-middleware");
 
-const API_TARGET = process.env.REACT_APP_PROXY_TARGET || "http://localhost:5000";
+const API_TARGET = process.env.REACT_APP_PROXY_TARGET || "http://localhost:5001";
 
 module.exports = function setupProxy(app) {
   app.use(

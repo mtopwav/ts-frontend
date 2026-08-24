@@ -4,20 +4,24 @@ function getApiBaseUrl() {
   }
 
   if (typeof window !== "undefined") {
-    const { hostname, port } = window.location;
+    const { hostname, port, origin } = window.location;
     const isLocal = hostname === "localhost" || hostname === "127.0.0.1";
 
-    if (isLocal) {
-      // CRA dev server — setupProxy forwards /api → localhost:5000
-      if (port === "3000" || port === "3001") {
-        return "/api";
-      }
-      // XAMPP / static build (port 80 or empty) — call Node directly
-      return "http://localhost:5000/api";
+    // CRA dev server — setupProxy forwards /api → backend
+    if (isLocal && (port === "3000" || port === "3001")) {
+      return "/api";
     }
+
+    // Hosted domain, or Express serving the built app (e.g. :5001)
+    if (!isLocal || port === "5001") {
+      return `${origin}/api`;
+    }
+
+    // Local Apache/XAMPP static files — API still on Node :5001
+    return "http://localhost:5001/api";
   }
 
-  return "http://localhost:5000/api";
+  return "/api";
 }
 
 export { getApiBaseUrl };
@@ -74,7 +78,7 @@ export const apiRequest = async (endpoint, options = {}) => {
       throw new Error(
         response.status === 404
           ? "API route not found. Start the backend (cd backend && npm start) and restart the frontend (npm start)."
-          : "Server returned an unexpected response. Make sure the backend is running on port 5000."
+          : "Server returned an unexpected response. Make sure the backend is running on port 5001."
       );
     }
 
@@ -106,7 +110,7 @@ export const apiRequest = async (endpoint, options = {}) => {
       throw new Error(
         typeof navigator !== "undefined" && !navigator.onLine
           ? "There is no Internet Connection...!"
-          : "Cannot reach the backend. Run: cd backend && npm start (port 5000), then restart the frontend."
+          : "Cannot reach the backend. Run: cd backend && npm start (port 5001), then restart the frontend."
       );
     }
 
