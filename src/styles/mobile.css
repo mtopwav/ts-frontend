@@ -1,0 +1,243 @@
+/**
+ * Global mobile-friendly layout and touch targets.
+ * Import after components.css in index.js.
+ */
+
+@media (max-width: 768px) {
+  /* Off-canvas sidebar for admin + manager shells */
+  .dashboard-container .sidebar,
+  .spareparts-container .sidebar,
+  .employees-container .sidebar,
+  .categories-brands-container .sidebar,
+  .settings-container .sidebar,
+  .finance-dashboard-container .sidebar,
+  .payments-container .sidebar {
+    transform: translateX(-100%);
+    width: 260px !important;
+    transition: transform 0.3s ease, width 0.3s ease;
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.2);
+  }
+
+  .dashboard-container .sidebar.open,
+  .spareparts-container .sidebar.open,
+  .employees-container .sidebar.open,
+  .categories-brands-container .sidebar.open,
+  .settings-container .sidebar.open,
+  .finance-dashboard-container .sidebar.open,
+  .payments-container .sidebar.open {
+    transform: translateX(0);
+    z-index: 1001;
+  }
+
+  .dashboard-container .sidebar.closed,
+  .spareparts-container .sidebar.closed,
+  .employees-container .sidebar.closed,
+  .categories-brands-container .sidebar.closed,
+  .settings-container .sidebar.closed,
+  .finance-dashboard-container .sidebar.closed,
+  .payments-container .sidebar.closed {
+    transform: translateX(-100%);
+  }
+
+  .dashboard-container .main-content,
+  .spareparts-container .main-content,
+  .employees-container .main-content,
+  .categories-brands-container .main-content,
+  .settings-container .main-content,
+  .finance-dashboard-container .main-content,
+  .payments-container .main-content {
+    margin-left: 0 !important;
+    width: 100% !important;
+  }
+
+  .sidebar-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 999;
+    border: none;
+    padding: 0;
+    margin: 0;
+    background: rgba(0, 0, 0, 0.45);
+    cursor: pointer;
+    animation: mobileFadeIn 0.2s ease;
+  }
+
+  @keyframes mobileFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  /* Headers */
+  .dashboard-header,
+  .spareparts-header,
+  .employees-header,
+  .categories-brands-header,
+  .settings-header,
+  .payments-header,
+  .finance-dashboard-header {
+    padding: 12px 14px !important;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .page-title {
+    font-size: 1.15rem !important;
+    line-height: 1.3;
+  }
+
+  .header-right {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .user-name,
+  .manager-date-time,
+  .date-time-display {
+    display: none !important;
+  }
+
+  .menu-toggle {
+    min-width: 44px;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .logout-btn span {
+    display: none;
+  }
+
+  .logout-btn {
+    min-width: 44px;
+    min-height: 44px;
+    padding: 10px 12px !important;
+  }
+
+  /* Content areas */
+  .dashboard-content,
+  .spareparts-content,
+  .employees-content,
+  .categories-brands-content,
+  .settings-content,
+  .payments-content,
+  .cashier-content,
+  .finance-dashboard-content {
+    padding: 14px !important;
+  }
+
+  /* Action bars */
+  .action-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .action-bar-search-group,
+  .action-bar-actions {
+    width: 100%;
+  }
+
+  .action-bar-actions {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 120px), 1fr));
+    gap: 8px;
+  }
+
+  .search-box {
+    width: 100%;
+    min-width: 0 !important;
+    max-width: none !important;
+  }
+
+  .add-btn,
+  .btn-primary,
+  .btn-secondary,
+  .cancel-btn,
+  .submit-btn {
+    min-height: 44px;
+    justify-content: center;
+  }
+
+  /* Tables */
+  .table-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    max-width: 100%;
+  }
+
+  /* Modals */
+  .modal-overlay {
+    padding: 12px !important;
+    align-items: flex-end;
+  }
+
+  .modal-content,
+  .sparepart-form-modal,
+  .view-modal {
+    width: 100% !important;
+    max-width: 100% !important;
+    max-height: 92dvh;
+    overflow-y: auto;
+    border-radius: 12px 12px 0 0;
+    margin: 0;
+  }
+
+  .modal-header h2,
+  .sparepart-form-header-text h2 {
+    font-size: 1.1rem;
+  }
+
+  /* Forms — prevent iOS zoom on focus */
+  input,
+  select,
+  textarea,
+  .search-input,
+  .form-control,
+  .sparepart-form-input {
+    font-size: 16px !important;
+  }
+
+  .form-row,
+  .sparepart-form-row {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Stats / grids */
+  .stats-row,
+  .stats-grid,
+  .dashboard-row,
+  .quick-actions {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Charts */
+  .chart-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+@media (max-width: 480px) {
+  .action-bar-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .notification-btn {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
+@media (hover: none) and (pointer: coarse) {
+  .add-btn:hover,
+  .nav-item:hover,
+  .btn-primary:hover {
+    transform: none;
+  }
+
+  .add-btn:active,
+  .btn-primary:active {
+    opacity: 0.92;
+  }
+}

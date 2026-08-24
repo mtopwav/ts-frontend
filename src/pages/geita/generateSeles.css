@@ -1,0 +1,357 @@
+/* Geita Branch — Generate Sales form (matches Boma layout) */
+
+.boma-generate-sales-page {
+  padding-bottom: 32px;
+}
+
+.boma-generate-sales-card {
+  background: var(--white);
+  border-radius: 14px;
+  border: 1px solid var(--border-color);
+  box-shadow: var(--card-shadow-lg);
+  overflow: hidden;
+}
+
+.boma-generate-sales-card .card-header {
+  padding: 22px 28px;
+  border-bottom: 1px solid var(--border-color);
+  background: linear-gradient(135deg, rgba(86, 39, 49, 0.06) 0%, rgba(255, 0, 0, 0.04) 100%);
+}
+
+.boma-generate-sales-card .card-header h2 {
+  margin: 0 0 6px;
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.boma-generate-sales-subtitle {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--text-subtle);
+}
+
+.boma-generate-sales-card .card-body {
+  padding: 28px;
+}
+
+.boma-generate-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px 28px;
+}
+
+.boma-generate-form .form-row-full {
+  grid-column: 1 / -1;
+}
+
+.boma-generate-form .form-col {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.boma-generate-form .form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.boma-generate-form .form-field label,
+.boma-generate-form .form-label {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--label);
+  letter-spacing: 0.02em;
+}
+
+.boma-generate-form .form-field label .required,
+.boma-generate-form .form-label .required {
+  color: var(--error);
+}
+
+.boma-generate-form .form-input,
+.boma-generate-form .form-select {
+  width: 100%;
+  padding: 11px 14px;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  background: var(--input-bg);
+  color: var(--text);
+  font-size: 0.95rem;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.boma-generate-form .form-input:focus,
+.boma-generate-form .form-select:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: var(--focus-ring);
+}
+
+.boma-generate-form .form-input-readonly {
+  background: var(--surface-muted);
+  color: var(--text-muted);
+  cursor: default;
+}
+
+.boma-generate-form .form-input-total {
+  font-weight: 700;
+  font-size: 1.15rem;
+  color: var(--primary-dark);
+  background: rgba(255, 0, 0, 0.06);
+  border-color: rgba(255, 0, 0, 0.2);
+}
+
+.boma-price-type-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 16px;
+  padding: 16px 18px;
+  background: var(--surface-muted);
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+}
+
+.boma-price-type-row .form-field {
+  flex: 1;
+  min-width: 200px;
+  max-width: 320px;
+  margin: 0;
+}
+
+.boma-generate-form .search-field {
+  position: relative;
+}
+
+.boma-generate-form .search-field-icon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-subtle);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.boma-generate-form .search-field .form-input {
+  padding-left: 42px;
+}
+
+.boma-generate-form .dropdown-panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  background: var(--white);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  box-shadow: var(--card-shadow-lg);
+  max-height: 220px;
+  overflow-y: auto;
+  z-index: 1000;
+}
+
+.boma-generate-form .dropdown-item {
+  padding: 12px 16px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--border-color);
+  transition: background 0.15s;
+}
+
+.boma-generate-form .dropdown-item:last-child {
+  border-bottom: none;
+}
+
+.boma-generate-form .dropdown-item:hover {
+  background: var(--primary-light-bg);
+}
+
+.boma-generate-form .dropdown-item-title {
+  font-weight: 600;
+  color: var(--text);
+  font-size: 0.95rem;
+}
+
+.boma-generate-form .dropdown-item-meta {
+  font-size: 0.82rem;
+  color: var(--text-subtle);
+  margin-top: 3px;
+}
+
+.boma-generate-form .dropdown-empty {
+  padding: 14px 16px;
+  color: var(--text-subtle);
+  font-size: 0.9rem;
+}
+
+.boma-selected-parts {
+  margin-top: 4px;
+}
+
+.boma-selected-parts-label {
+  display: block;
+  margin-bottom: 10px;
+  font-weight: 600;
+  color: var(--text);
+  font-size: 0.92rem;
+}
+
+.boma-selected-parts-list {
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--surface-muted);
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.boma-selected-part-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 14px 16px;
+  background: var(--white);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.boma-selected-part-row:last-child {
+  border-bottom: none;
+}
+
+.boma-selected-part-row .part-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.boma-selected-part-row .part-name {
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+
+.boma-selected-part-row .part-meta {
+  font-size: 0.82rem;
+  color: var(--text-subtle);
+  margin-bottom: 10px;
+}
+
+.boma-selected-part-row .part-qty-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.88rem;
+  color: var(--text-subtle);
+}
+
+.boma-selected-part-row .qty-input {
+  width: 76px;
+  padding: 7px 10px;
+  margin: 0;
+  border-radius: 8px;
+}
+
+.boma-selected-part-row .part-line-total {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.boma-selected-part-row .btn-remove {
+  flex-shrink: 0;
+  padding: 9px 14px;
+  background: var(--error);
+  color: var(--white);
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  transition: opacity 0.2s, transform 0.15s;
+}
+
+.boma-selected-part-row .btn-remove:hover {
+  opacity: 0.92;
+  transform: translateY(-1px);
+}
+
+.boma-generate-form-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-color);
+  margin-top: 4px;
+}
+
+.boma-generate-submit {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 28px;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--white);
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(255, 0, 0, 0.25);
+  transition: transform 0.15s, box-shadow 0.2s;
+}
+
+.boma-generate-submit:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(255, 0, 0, 0.32);
+}
+
+.boma-generate-submit:active {
+  transform: translateY(0);
+}
+
+.boma-generate-loading {
+  padding: 48px 24px;
+  text-align: center;
+}
+
+.dark-theme .boma-generate-sales-card {
+  background: var(--surface);
+  border-color: var(--border-color);
+}
+
+.dark-theme .boma-generate-sales-card .card-header {
+  background: linear-gradient(135deg, rgba(86, 39, 49, 0.35) 0%, rgba(3, 3, 3, 0.2) 100%);
+}
+
+.dark-theme .boma-generate-form .dropdown-panel,
+.dark-theme .boma-selected-part-row {
+  background: var(--bg-secondary);
+}
+
+.dark-theme .boma-generate-form .form-input-total {
+  background: rgba(255, 0, 0, 0.12);
+}
+
+@media (max-width: 900px) {
+  .boma-generate-form {
+    grid-template-columns: 1fr;
+  }
+
+  .boma-generate-sales-card .card-body {
+    padding: 20px 18px;
+  }
+
+  .boma-selected-part-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .boma-selected-part-row .btn-remove {
+    align-self: flex-end;
+  }
+}

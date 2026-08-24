@@ -1,0 +1,280 @@
+/* Admin Sales — wide table for 15 columns */
+
+.admin-sales-action-bar {
+  align-items: flex-start;
+}
+
+.admin-sales-action-bar .action-bar-search-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.admin-sales-action-bar .location-filter-dropdown {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.admin-sales-action-bar .location-filter-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  min-height: 36px;
+  background: linear-gradient(135deg, #6c757d, #495057);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: box-shadow 0.2s ease, background 0.2s ease;
+  white-space: nowrap;
+}
+
+.admin-sales-action-bar .location-filter-btn:hover {
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15);
+}
+
+.admin-sales-action-bar .location-filter-dropdown.is-open .location-filter-btn,
+.admin-sales-action-bar .location-filter-dropdown:focus-within .location-filter-btn {
+  box-shadow: 0 0 0 3px rgba(86, 39, 49, 0.25);
+}
+
+.admin-sales-action-bar .location-filter-icon {
+  font-size: 0.8125rem;
+  flex-shrink: 0;
+}
+
+.admin-sales-action-bar .location-filter-label {
+  min-width: 88px;
+  text-align: left;
+}
+
+.admin-sales-action-bar .location-filter-chevron {
+  font-size: 0.7rem;
+  opacity: 0.9;
+  transition: transform 0.2s ease;
+}
+
+.admin-sales-action-bar .location-filter-dropdown.is-open .location-filter-chevron {
+  transform: rotate(180deg);
+}
+
+.admin-sales-action-bar .location-filter-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 50;
+  min-width: 220px;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  background: var(--bg-secondary, #fff);
+  border: 1px solid var(--border-color, #ddd);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+.admin-sales-action-bar .location-filter-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-primary, #222);
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background-color 0.2s ease,
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    color 0.2s ease;
+}
+
+.admin-sales-action-bar .location-filter-option:hover {
+  background: linear-gradient(135deg, rgba(86, 39, 49, 0.12), rgba(86, 39, 49, 0.06));
+  transform: translateX(3px);
+  box-shadow: inset 3px 0 0 #562731;
+}
+
+.admin-sales-action-bar .location-filter-option:hover .location-filter-option-icon {
+  color: #562731;
+  transform: scale(1.1);
+}
+
+.admin-sales-action-bar .location-filter-option:hover .location-filter-option-label {
+  color: #562731;
+}
+
+.admin-sales-action-bar .location-filter-option:hover .location-filter-option-hint {
+  color: #562731;
+  opacity: 0.75;
+}
+
+.admin-sales-action-bar .location-filter-option:focus-visible {
+  outline: none;
+  background: linear-gradient(135deg, rgba(86, 39, 49, 0.14), rgba(86, 39, 49, 0.08));
+  box-shadow: inset 3px 0 0 #562731, 0 0 0 2px rgba(86, 39, 49, 0.2);
+}
+
+.admin-sales-action-bar .location-filter-option.is-selected {
+  background: rgba(86, 39, 49, 0.1);
+  box-shadow: inset 3px 0 0 #562731;
+}
+
+.admin-sales-action-bar .location-filter-option.is-selected:hover {
+  background: linear-gradient(135deg, rgba(86, 39, 49, 0.18), rgba(86, 39, 49, 0.1));
+}
+
+.admin-sales-action-bar .location-filter-option-icon {
+  margin-top: 2px;
+  color: #562731;
+  font-size: 0.875rem;
+  flex-shrink: 0;
+  transition: color 0.2s ease, transform 0.2s ease;
+}
+
+.admin-sales-action-bar .location-filter-option-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.admin-sales-action-bar .location-filter-option-label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-primary, #222);
+  transition: color 0.2s ease;
+}
+
+.admin-sales-action-bar .location-filter-option-hint {
+  font-size: 0.75rem;
+  color: var(--text-muted, #777);
+  line-height: 1.3;
+  transition: color 0.2s ease, opacity 0.2s ease;
+}
+
+.admin-sales-action-bar .location-filter-active .location-filter-btn {
+  background: linear-gradient(135deg, #562731, #3d1c23);
+}
+
+.admin-sales-table-container {
+  overflow-x: auto;
+  overflow-y: auto;
+  max-height: 70vh;
+  width: 100%;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: var(--primary) #f1f1f1;
+}
+
+.admin-sales-table-container::-webkit-scrollbar {
+  height: 10px;
+  width: 10px;
+}
+
+.admin-sales-table-container::-webkit-scrollbar-thumb {
+  background: var(--primary);
+  border-radius: 6px;
+}
+
+.admin-sales-table {
+  width: 100%;
+  min-width: 1900px;
+  table-layout: auto;
+}
+
+.admin-sales-table th,
+.admin-sales-table td {
+  white-space: nowrap;
+  vertical-align: top;
+}
+
+.admin-sales-table th:nth-child(3),
+.admin-sales-table td:nth-child(3),
+.admin-sales-table th:nth-child(4),
+.admin-sales-table td:nth-child(4) {
+  white-space: normal;
+  min-width: 160px;
+  max-width: 240px;
+}
+
+.admin-sales-table th:nth-child(4),
+.admin-sales-table td:nth-child(4) {
+  min-width: 200px;
+  max-width: 280px;
+}
+
+.admin-sales-table th:nth-child(1),
+.admin-sales-table td:nth-child(1) {
+  min-width: 48px;
+  text-align: center;
+}
+
+.admin-sales-table th:nth-child(2),
+.admin-sales-table td:nth-child(2) {
+  min-width: 72px;
+}
+
+.admin-sales-table th:nth-child(15),
+.admin-sales-table td:nth-child(15) {
+  min-width: 140px;
+  position: sticky;
+  right: 0;
+  background: var(--bg-secondary, var(--white));
+  box-shadow: -4px 0 8px rgba(0, 0, 0, 0.06);
+  z-index: 1;
+}
+
+.admin-sales-table thead th:nth-child(15) {
+  background: var(--bg-primary, var(--background));
+  z-index: 3;
+}
+
+.admin-sales-table .customer-info,
+.admin-sales-table .part-info {
+  align-items: flex-start;
+}
+
+.admin-sales-table .info-name {
+  word-break: break-word;
+  line-height: 1.35;
+}
+
+.admin-sales-table .info-detail {
+  word-break: break-word;
+  line-height: 1.3;
+}
+
+.admin-sales-table .amount-cell {
+  min-width: 110px;
+}
+
+.admin-sales-table .action-buttons {
+  flex-wrap: nowrap;
+  gap: 6px;
+}
+
+.dark-theme .admin-sales-table th:nth-child(15),
+.dark-theme .admin-sales-table td:nth-child(15) {
+  background: var(--bg-secondary);
+}
+
+.dark-theme .admin-sales-table thead th:nth-child(15) {
+  background: var(--bg-primary);
+}
+
+@media (max-width: 1200px) {
+  .admin-sales-table {
+    min-width: 1700px;
+  }
+}

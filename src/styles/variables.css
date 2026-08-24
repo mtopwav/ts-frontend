@@ -1,0 +1,105 @@
+/**
+ * Design system — brand tokens and semantic aliases.
+ * Core palette: ink #030303, wine #562731, white #FEFEFE, red #FF0000, gray #EDEDED
+ * Import once in index.js before other stylesheets.
+ */
+:root {
+  /* Core brand palette */
+  --color-ink: #030303;
+  --color-wine: #562731;
+  --color-white: #FEFEFE;
+  --color-red: #FF0000;
+  --color-gray: #EDEDED;
+
+  /* Brand tokens */
+  --primary: var(--color-red);
+  --primary-dark: var(--color-wine);
+  --primary-light: #E60000;
+  --primary-light-bg: rgba(255, 0, 0, 0.08);
+  --primary-ring: rgba(255, 0, 0, 0.2);
+
+  --black: var(--color-ink);
+  --black-dark: var(--color-wine);
+
+  --white: var(--color-white);
+
+  --background: var(--color-white);
+  --border: var(--color-gray);
+
+  --text: var(--color-ink);
+  --text-muted: var(--color-wine);
+  --text-strong: var(--color-ink);
+  --text-subtle: rgba(86, 39, 49, 0.72);
+  --text-faint: rgba(86, 39, 49, 0.5);
+  --placeholder: rgba(3, 3, 3, 0.42);
+  --label: var(--color-wine);
+
+  --success: #16A34A;
+  --warning: #F59E0B;
+  --error: var(--color-red);
+
+  /* Semantic aliases (used across page stylesheets) */
+  --bg-primary: var(--background);
+  --bg-secondary: var(--white);
+  --bg-tertiary: var(--black-dark);
+  --surface: var(--white);
+  --surface-muted: var(--color-gray);
+  --input-bg: var(--white);
+  --text-primary: var(--text);
+  --text-secondary: var(--text-muted);
+  --border-color: var(--border);
+
+  /* Sidebar */
+  --sidebar-bg-start: var(--color-wine);
+  --sidebar-bg-end: var(--color-ink);
+  --sidebar-text: var(--white);
+  --sidebar-text-secondary: rgba(254, 254, 254, 0.85);
+  --sidebar-border: rgba(254, 254, 254, 0.12);
+  --sidebar-hover-bg: rgba(254, 254, 254, 0.1);
+  --sidebar-active-bg: rgba(255, 0, 0, 0.16);
+  --sidebar-active-border: var(--color-red);
+
+  /* Elevation & focus */
+  --card-shadow: 0 2px 8px rgba(3, 3, 3, 0.08);
+  --card-shadow-lg: 0 4px 20px rgba(3, 3, 3, 0.1);
+  --focus-ring: 0 0 0 3px var(--primary-ring);
+
+  /* Status surfaces */
+  --success-bg: rgba(22, 163, 74, 0.12);
+  --success-border: rgba(22, 163, 74, 0.3);
+  --success-text: #166534;
+  --warning-bg: rgba(245, 158, 11, 0.12);
+  --warning-border: rgba(245, 158, 11, 0.3);
+  --warning-text: #92400E;
+  --error-bg: rgba(255, 0, 0, 0.08);
+  --error-border: rgba(255, 0, 0, 0.25);
+  --error-text: var(--color-wine);
+
+  /* Alerts */
+  --alert-error-bg: #FFE5E5;
+  --alert-error-text: var(--color-wine);
+  --alert-error-border: #FFCCCC;
+  --alert-success-bg: #DCFCE7;
+  --alert-success-text: var(--success-text);
+  --alert-success-border: #BBF7D0;
+}
+
+.dark-theme {
+  --background: var(--color-ink);
+  --bg-primary: var(--color-ink);
+  --bg-secondary: var(--color-wine);
+  --bg-tertiary: var(--color-ink);
+  --surface: #141010;
+  --surface-muted: rgba(86, 39, 49, 0.35);
+  --input-bg: #141010;
+  --text: var(--color-white);
+  --text-muted: var(--color-gray);
+  --text-primary: var(--text);
+  --text-secondary: var(--text-muted);
+  --border: rgba(237, 237, 237, 0.18);
+  --border-color: var(--border);
+  --card-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+  --sidebar-bg-start: var(--color-wine);
+  --sidebar-bg-end: var(--color-ink);
+}
+
