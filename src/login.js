@@ -131,13 +131,15 @@ function Login() {
       let errorMessage = 'Login failed. Please try again.';
 
       if (
-        err.message.includes('backend') ||
+        err.message.includes('Cannot reach') ||
         err.message.includes('Failed to fetch') ||
         err.message.includes('NetworkError') ||
-        err.message.includes('API route not found')
+        err.message.includes('API route not found') ||
+        err.message.includes('backend')
       ) {
-        errorMessage =
-          'Cannot reach the local backend. In a terminal run: cd backend && npm start (port 5001), then restart the frontend with npm start.';
+        errorMessage = err.message.includes('Cannot reach')
+          ? err.message
+          : 'Cannot reach the API. Open https://www.ts-autoparts.co.tz and ensure the backend is running.';
       } else if (err.message) {
         errorMessage = err.message;
       }

@@ -1,27 +1,45 @@
 function getApiBaseUrl() {
-  if (process.env.REACT_APP_API_URL) {
-    return process.env.REACT_APP_API_URL.replace(/\/$/, "");
+  // Absolute URL from env wins (e.g. https://api.example.com/api)
+  const envUrl = process.env.REACT_APP_API_URL;
+  if (envUrl && /^https?:\/\//i.test(envUrl)) {
+    return envUrl.replace(/\/$/, "");
   }
 
   if (typeof window !== "undefined") {
-    const { hostname, port, origin } = window.location;
-    const isLocal = hostname === "localhost" || hostname === "127.0.0.1";
+    const { hostname, port, protocol, origin } = window.location;
+    const isLocalhost = hostname === "localhost" || hostname === "127.0.0.1";
+    const isProdDomain =
+      hostname === "ts-autoparts.co.tz" ||
+      hostname === "www.ts-autoparts.co.tz";
 
     // CRA dev server — setupProxy forwards /api → backend
-    if (isLocal && (port === "3000" || port === "3001")) {
+    if (isLocalhost && (port === "3000" || port === "3001")) {
       return "/api";
     }
 
-    // Hosted domain, or Express serving the built app (e.g. :5001)
-    if (!isLocal || port === "5001") {
+    // Live domain, Express on :5001, or standard web ports — same-origin /api
+    // (reverse proxy must forward /api → Node)
+    if (
+      isProdDomain ||
+      port === "5001" ||
+      port === "" ||
+      port === "80" ||
+      port === "443" ||
+      (envUrl && envUrl.startsWith("/"))
+    ) {
       return `${origin}/api`;
     }
 
-    // Local Apache/XAMPP static files — API still on Node :5001
+    // Bare VPS IP without proxy — call Node directly
+    if (!isLocalhost) {
+      return `${protocol}//${hostname}:5001/api`;
+    }
+
+    // Local XAMPP / static files
     return "http://localhost:5001/api";
   }
 
-  return "/api";
+  return envUrl && envUrl.startsWith("/") ? envUrl.replace(/\/$/, "") : "/api";
 }
 
 export { getApiBaseUrl };
@@ -110,7 +128,7 @@ export const apiRequest = async (endpoint, options = {}) => {
       throw new Error(
         typeof navigator !== "undefined" && !navigator.onLine
           ? "There is no Internet Connection...!"
-          : "Cannot reach the backend. Run: cd backend && npm start (port 5001), then restart the frontend."
+          : "Cannot reach the API. Check https://www.ts-autoparts.co.tz and that the backend is running."
       );
     }
 
