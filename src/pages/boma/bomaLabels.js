@@ -1,40 +1,57 @@
-/** User-facing labels for the Boma branch portal (replaces generic "Manager" wording). */
-export const bomaLabels = {
-  branch: 'Boma Branch',
-  sidebarTitle: 'Boma Branch',
-  userFallback: 'Boma Branch',
-  dashboard: 'Boma Branch Dashboard',
-  sales: 'Boma Branch Sales',
-  reports: 'Boma Branch Reports',
-  loans: 'Boma Branch Loans',
-  transactions: 'Boma Branch Transactions',
-  spareParts: 'Boma Branch Spare Parts',
-  searchPlaceholder: 'Search Boma Branch records...',
-  transactionsReportDesc: 'Boma Branch transactions (all payment methods)',
-  transactionsReportTitle: 'BOMA BRANCH TRANSACTIONS REPORT',
-  salesReportDesc: 'Boma Branch sales (all statuses)',
-  salesReportTitle: 'BOMA BRANCH SALES REPORT',
-  sparePartsInventoryReport: 'Boma Branch Spare Parts Inventory',
-  customerInfo: 'Boma Branch Customer Info',
-  generateSales: 'Boma Branch Generate Sales',
-  bulkSms: 'Boma Branch Bulk SMS',
-  bulkSmsManagement: 'Boma Branch Bulk SMS management',
-  pageTitles: {
-    dashboard: 'Dashboard',
-    spareParts: 'Spare Parts',
-    customerInfo: 'Customer Info',
-    generateSales: 'Generate Sales',
-    transactions: 'Transactions',
-    loans: 'Loans',
-    sales: 'Sales',
-    reports: 'Reports',
-    bulkSms: 'Bulk SMS',
-  },
-  transactionReportsBanner: (period) =>
-    `Boma Branch transaction reports — ${period}`,
-};
+import { getTranslations, getCurrentLanguage } from '../../utils/translations';
+
+/** Build Boma branch labels for the current (or given) UI language. */
+export function getBomaLabels(lang = getCurrentLanguage()) {
+  const t = getTranslations(lang);
+  return {
+    branch: t.bomaBranch,
+    sidebarTitle: t.bomaBranch,
+    userFallback: t.bomaBranch,
+    dashboard: `${t.bomaBranch} — ${t.dashboard}`,
+    sales: `${t.bomaBranch} — ${t.sales}`,
+    reports: `${t.bomaBranch} — ${t.reports}`,
+    loans: `${t.bomaBranch} — ${t.loans}`,
+    transactions: `${t.bomaBranch} — ${t.transactions}`,
+    spareParts: `${t.bomaBranch} — ${t.spareParts}`,
+    searchPlaceholder: `${t.search} ${t.bomaBranch}...`,
+    transactionsReportDesc: `${t.bomaBranch} ${t.transactions} (${t.allPaymentMethods})`,
+    transactionsReportTitle: `${t.bomaBranch.toUpperCase()} — ${t.transactions.toUpperCase()}`,
+    salesReportDesc: `${t.bomaBranch} ${t.sales}`,
+    salesReportTitle: `${t.bomaBranch.toUpperCase()} — ${t.sales.toUpperCase()}`,
+    sparePartsInventoryReport: `${t.bomaBranch} — ${t.spareParts}`,
+    customerInfo: `${t.bomaBranch} — ${t.customerInfo}`,
+    generateSales: `${t.bomaBranch} — ${t.generateSales}`,
+    bulkSms: `${t.bomaBranch} — ${t.bulkSms}`,
+    bulkSmsManagement: `${t.bomaBranch} — ${t.bulkSms}`,
+    pageTitles: {
+      dashboard: t.dashboard,
+      spareParts: t.spareParts,
+      customerInfo: t.customerInfo,
+      generateSales: t.generateSales,
+      transactions: t.transactions,
+      loans: t.loans,
+      sales: t.sales,
+      reports: t.reports,
+      bulkSms: t.bulkSms,
+    },
+    transactionReportsBanner: (period) =>
+      `${t.bomaBranch} ${t.transactionReports} — ${period}`,
+  };
+}
+
+/** Live labels that follow the selected language on each access. */
+export const bomaLabels = new Proxy(
+  {},
+  {
+    get(_target, prop) {
+      const labels = getBomaLabels();
+      const value = labels[prop];
+      return typeof value === 'function' ? value.bind(labels) : value;
+    },
+  }
+);
 
 export function bomaUserName(user) {
-  if (!user) return bomaLabels.userFallback;
-  return user.full_name || user.username || bomaLabels.userFallback;
+  if (!user) return getBomaLabels().userFallback;
+  return user.full_name || user.username || getBomaLabels().userFallback;
 }

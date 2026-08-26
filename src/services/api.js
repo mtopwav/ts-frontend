@@ -93,6 +93,11 @@ export const apiRequest = async (endpoint, options = {}) => {
       if (IS_DEV) {
         console.error("Non-JSON response:", text.substring(0, 200));
       }
+      if (/Cannot POST|Cannot GET|<!DOCTYPE html>/i.test(text)) {
+        throw new Error(
+          "API proxy misconfigured: /api is not reaching the Node server. Ask the host to proxy /api to port 5001 without stripping the path."
+        );
+      }
       throw new Error(
         response.status === 404
           ? "API route not found. Start the backend (cd backend && npm start) and restart the frontend (npm start)."

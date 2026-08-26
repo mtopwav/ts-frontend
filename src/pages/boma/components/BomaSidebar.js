@@ -27,14 +27,14 @@ const NAV_ITEMS = [
 function navLabel(t, key) {
   const map = {
     dashboard: t.dashboard,
-    spareParts: t.spareParts || 'Spare Parts',
-    customerInfo: t.customerInfo || 'Customer Info',
+    spareParts: t.spareParts,
+    customerInfo: t.customerInfo,
     generateSales: t.generateSales,
     transactions: t.transactions,
     loans: t.loans,
     reports: t.reports,
   };
-  return map[key] || key;
+  return map[key] || t[key] || key;
 }
 
 export default function BomaSidebar({ sidebarOpen, isMobile, onNavClick }) {

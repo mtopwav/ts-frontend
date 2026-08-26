@@ -581,35 +581,35 @@ function AdminTransactions() {
         <nav className="sidebar-nav" onClick={isMobile ? closeSidebar : undefined}>
           <Link to="/admin/dashboard" className={'nav-item' + (location.pathname === '/admin/dashboard' ? ' active' : '')}>
             <FaChartLine className="nav-icon" />
-            <span>Dashboard</span>
+            <span>{t.dashboard}</span>
           </Link>
           <Link to="/admin/categories-brands" className={'nav-item' + (location.pathname === '/admin/categories-brands' ? ' active' : '')}>
             <FaTags className="nav-icon" />
-            <span>Categories & Brands</span>
+            <span>{t.categoriesBrands}</span>
           </Link>
           <Link to="/admin/spareparts" className={'nav-item' + (location.pathname === '/admin/spareparts' ? ' active' : '')}>
             <FaBox className="nav-icon" />
-            <span>Spare Parts</span>
+            <span>{t.spareParts}</span>
           </Link>
           <Link to="/admin/sales" className={'nav-item' + (location.pathname === '/admin/sales' ? ' active' : '')}>
             <FaShoppingCart className="nav-icon" />
-            <span>Sales</span>
+            <span>{t.sales}</span>
           </Link>
           <Link to="/admin/employees" className={'nav-item' + (location.pathname === '/admin/employees' ? ' active' : '')}>
             <FaUsers className="nav-icon" />
-            <span>Employees</span>
+            <span>{t.employees}</span>
           </Link>
           <Link to="/admin/transactions" className={'nav-item' + (location.pathname === '/admin/transactions' ? ' active' : '')}>
             <FaCalendarAlt className="nav-icon" />
-            <span>Transactions</span>
+            <span>{t.transactions}</span>
           </Link>
           <Link to="/admin/reports" className={'nav-item' + (location.pathname === '/admin/reports' ? ' active' : '')}>
             <FaChartBar className="nav-icon" />
-            <span>Reports</span>
+            <span>{t.reports}</span>
           </Link>
           <Link to="/admin/settings" className={'nav-item' + (location.pathname === '/admin/settings' ? ' active' : '')}>
             <FaCog className="nav-icon" />
-            <span>Settings</span>
+            <span>{t.settings}</span>
           </Link>
         </nav>
       </aside>
@@ -620,73 +620,73 @@ function AdminTransactions() {
             <button className="menu-toggle" onClick={toggleSidebar}>
               <FaBars />
             </button>
-            <h1 className="page-title">Admin Transactions</h1>
+            <h1 className="page-title">{t.adminTransactions}</h1>
           </div>
           <div className="header-right">
             <LanguageSelector />
             <ThemeToggle />
             <div className="user-info">
               <FaUser className="user-icon" />
-              <span className="user-name">{capitalizeName(user?.full_name || user?.username || 'Admin')}</span>
+              <span className="user-name">{capitalizeName(user?.full_name || user?.username || t.admin)}</span>
             </div>
             <button className="logout-btn" onClick={handleLogout}>
-              <FaSignOutAlt /> Logout
+              <FaSignOutAlt /> {t.logout}
             </button>
           </div>
         </header>
 
         <div className="finance-content">
           <section className="transactions-intro">
-            <h2 className="transactions-page-title">Transactions</h2>
-            <p className="transactions-page-desc">View sales and payment transactions.</p>
+            <h2 className="transactions-page-title">{t.transactions}</h2>
+            <p className="transactions-page-desc">{t.viewSalesAndPayments}</p>
           </section>
 
           <div className="stats-grid transactions-stats">
             <div className="stat-card stat-primary">
               <div className="stat-info">
-                <h3 className="stat-title">Total</h3>
+                <h3 className="stat-title">{t.total}</h3>
                 <p className="stat-value">{dateFilteredPayments.length}</p>
               </div>
             </div>
             <div className="stat-card stat-success">
               <div className="stat-info">
-                <h3 className="stat-title">Approved</h3>
+                <h3 className="stat-title">{t.approved}</h3>
                 <p className="stat-value">{cardsApprovedCount}</p>
               </div>
             </div>
             <div className="stat-card stat-warning">
               <div className="stat-info">
-                <h3 className="stat-title">Loans</h3>
+                <h3 className="stat-title">{t.loans}</h3>
                 <p className="stat-value">TZS {formatPrice(cardsTotalAmountRemain)}</p>
               </div>
             </div>
             <div className="stat-card stat-info">
               <div className="stat-info">
-                <h3 className="stat-title">Cash</h3>
+                <h3 className="stat-title">{t.cash}</h3>
                 <p className="stat-value">TZS {formatPrice(cardsTotalCash)}</p>
               </div>
             </div>
             <div className="stat-card stat-primary">
               <div className="stat-info">
-                <h3 className="stat-title">Bank Transfer</h3>
+                <h3 className="stat-title">{t.bankTransfer}</h3>
                 <p className="stat-value">TZS {formatPrice(cardsTotalBankTransfer)}</p>
               </div>
             </div>
             <div className="stat-card stat-success">
               <div className="stat-info">
-                <h3 className="stat-title">M-Pesa</h3>
+                <h3 className="stat-title">{t.mpesa}</h3>
                 <p className="stat-value">TZS {formatPrice(cardsTotalMpesa)}</p>
               </div>
             </div>
             <div className="stat-card stat-success">
               <div className="stat-info">
-                <h3 className="stat-title">Mix by Yas</h3>
+                <h3 className="stat-title">{t.mixByYas}</h3>
                 <p className="stat-value">TZS {formatPrice(cardsTotalMixByYas)}</p>
               </div>
             </div>
             <div className="stat-card stat-success">
               <div className="stat-info">
-                <h3 className="stat-title">Airtel Money</h3>
+                <h3 className="stat-title">{t.airtelMoney}</h3>
                 <p className="stat-value">TZS {formatPrice(cardsTotalAirtelMoney)}</p>
               </div>
             </div>
@@ -694,12 +694,12 @@ function AdminTransactions() {
 
           <div className="transactions-section">
             <div className="section-header">
-              <h2>Transaction Records</h2>
+              <h2>{t.transactionRecords}</h2>
               <div className="section-actions">
                 <div className="filter-group">
                   <FaFilter className="filter-icon" />
                   <select className="filter-select" value={paymentMethodFilter} onChange={(e) => setPaymentMethodFilter(e.target.value)}>
-                    <option value="All">All payment methods</option>
+                    <option value="All">{t.allPaymentMethods}</option>
                     {uniquePaymentMethods.map((method) => (
                       <option key={method} value={method}>
                         {method}
@@ -713,12 +713,12 @@ function AdminTransactions() {
                     className="filter-select"
                     value={branchFilter}
                     onChange={(e) => setBranchFilter(e.target.value)}
-                    title="Filter by branch where the transaction was created"
-                    aria-label="Filter by branch location"
+                    title={t.location}
+                    aria-label={t.location}
                   >
-                    <option value="All">All Branches</option>
-                    <option value={BRANCH_BOMA}>Boma Branch</option>
-                    <option value={BRANCH_GEITA}>Geita Branch</option>
+                    <option value="All">{t.allBranches}</option>
+                    <option value={BRANCH_BOMA}>{t.bomaBranch}</option>
+                    <option value={BRANCH_GEITA}>{t.geitaBranch}</option>
                   </select>
                 </div>
                 <button

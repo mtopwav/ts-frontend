@@ -334,7 +334,7 @@ function AdminReports() {
             className={'nav-item' + (location.pathname === '/admin/transactions' ? ' active' : '')}
           >
             <FaCalendarAlt className="nav-icon" />
-            <span>Transactions</span>
+            <span>{t.transactions}</span>
           </Link>
           <Link to="/admin/reports" className="nav-item active">
             <FaChartBar className="nav-icon" />

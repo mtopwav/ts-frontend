@@ -310,7 +310,7 @@ function Settings() {
             className={'nav-item' + (window.location.pathname === '/admin/transactions' ? ' active' : '')}
           >
             <FaCalendarAlt className="nav-icon" />
-            <span>Transactions</span>
+            <span>{t.transactions}</span>
           </Link>
           <Link to="/admin/reports" className="nav-item">
             <FaChartBar className="nav-icon" />
@@ -456,7 +456,7 @@ function Settings() {
                         type={showPassword ? "text" : "password"}
                         value={securitySettings.currentPassword}
                         onChange={(e) => setSecuritySettings({...securitySettings, currentPassword: e.target.value})}
-                        placeholder="Enter current password"
+                        placeholder={t.enterCurrentPassword}
                         required
                       />
                       <button
@@ -469,13 +469,13 @@ function Settings() {
                     </div>
                   </div>
                   <div className="form-group">
-                    <label>New Password</label>
+                    <label>{t.newPassword}</label>
                     <div className="password-input-wrapper">
                       <input
                         type={showPassword ? "text" : "password"}
                         value={securitySettings.newPassword}
                         onChange={(e) => setSecuritySettings({...securitySettings, newPassword: e.target.value})}
-                        placeholder="Enter new password"
+                        placeholder={t.enterNewPassword}
                         required
                       />
                       <button
@@ -488,13 +488,13 @@ function Settings() {
                     </div>
                   </div>
                   <div className="form-group">
-                    <label>Confirm New Password</label>
+                    <label>{t.confirmNewPassword}</label>
                     <div className="password-input-wrapper">
                       <input
                         type={showPassword ? "text" : "password"}
                         value={securitySettings.confirmPassword}
                         onChange={(e) => setSecuritySettings({...securitySettings, confirmPassword: e.target.value})}
-                        placeholder="Confirm new password"
+                        placeholder={t.enterConfirmPassword}
                         required
                       />
                       <button
@@ -508,7 +508,7 @@ function Settings() {
                   </div>
                   <div className="form-actions">
                     <button type="submit" className="save-btn" disabled={passwordSaving}>
-                      <FaSave /> {passwordSaving ? 'Updating...' : 'Update Password'}
+                      <FaSave /> {passwordSaving ? t.updating : t.updatePassword}
                     </button>
                   </div>
                 </form>
@@ -520,13 +520,13 @@ function Settings() {
               <div className="settings-panel">
                 <div className="panel-header">
                   <FaCog className="panel-icon" />
-                  <h2>System Settings</h2>
+                  <h2>{t.systemSettings}</h2>
                 </div>
                 <form onSubmit={handleSystemSave} className="settings-form">
                   <div className="form-group">
                     <label>{t.language}</label>
                     <p className="settings-hint" style={{ margin: '0 0 8px', color: 'var(--text-secondary, #666)', fontSize: 13 }}>
-                      Switch between English and Swahili. Your choice is saved for the whole system.
+                      {t.languageSwitchHint}
                     </p>
                     <LanguageSelector />
                   </div>

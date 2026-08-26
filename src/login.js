@@ -6,6 +6,8 @@ import './login.css';
 import logo from './images/logo.png';
 import { ButtonLoader } from './components/LoadingSpinner';
 import { BRAND_LOGO_ALT, SYSTEM_NAME } from './utils/brand';
+import { useTranslation } from './utils/useTranslation';
+import LanguageSelector from './components/LanguageSelector';
 
 const EMPLOYEE_LOCATIONS = ['Boma', 'Geita'];
 
@@ -16,6 +18,7 @@ const BRANCH_DASHBOARD = {
 
 function Login() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [isAdminLogin, setIsAdminLogin] = useState(false);
   const [formData, setFormData] = useState({
     location: '',
@@ -69,7 +72,7 @@ function Login() {
       if (isAdminLogin) {
         const username = formData.username.trim();
         if (!username) {
-          setError('Please enter your username.');
+          setError(t.pleaseEnterUsername);
           setLoading(false);
           return;
         }
@@ -81,7 +84,7 @@ function Login() {
       } else {
         const location = formData.location.trim();
         if (!location) {
-          setError('Please select your location.');
+          setError(t.pleaseSelectLocation);
           setLoading(false);
           return;
         }
@@ -125,10 +128,10 @@ function Login() {
           location: userData.location || formData.location.trim(),
         });
       } else {
-        throw new Error('Login failed: Invalid response from server');
+        throw new Error(t.loginFailed);
       }
     } catch (err) {
-      let errorMessage = 'Login failed. Please try again.';
+      let errorMessage = t.loginFailed;
 
       if (
         err.message.includes('Cannot reach') ||
@@ -139,7 +142,7 @@ function Login() {
       ) {
         errorMessage = err.message.includes('Cannot reach')
           ? err.message
-          : 'Cannot reach the API. Open https://www.ts-autoparts.co.tz and ensure the backend is running.';
+          : t.cannotReachApi;
       } else if (err.message) {
         errorMessage = err.message;
       }
@@ -161,9 +164,12 @@ function Login() {
             <div className="login-logo-container">
               <img src={logo} alt={BRAND_LOGO_ALT} className="login-logo" />
             </div>
-            <h2 className="login-title">Login</h2>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
+              <LanguageSelector />
+            </div>
+            <h2 className="login-title">{t.login}</h2>
             <p className="login-subtitle">
-              {isAdminLogin ? 'Admin sign in' : 'Employee sign in by location'}
+              {isAdminLogin ? t.adminSignIn : t.employeeSignInByLocation}
             </p>
 
             {error && <div className="alert alert-error">{error}</div>}
@@ -172,7 +178,7 @@ function Login() {
               {isAdminLogin ? (
                 <div className="form-group">
                   <label htmlFor="username" className="form-label">
-                    Username
+                    {t.username}
                   </label>
                   <input
                     type="text"
@@ -181,14 +187,14 @@ function Login() {
                     className="form-control"
                     value={formData.username}
                     onChange={handleChange}
-                    placeholder="Enter admin username"
+                    placeholder={t.enterAdminUsername}
                     required
                   />
                 </div>
               ) : (
                 <div className="form-group">
                   <label htmlFor="location" className="form-label">
-                    Location
+                    {t.location}
                   </label>
                   <select
                     id="location"
@@ -198,10 +204,10 @@ function Login() {
                     onChange={handleChange}
                     required
                   >
-                    <option value="">Select location</option>
+                    <option value="">{t.selectLocation}</option>
                     {EMPLOYEE_LOCATIONS.map((loc) => (
                       <option key={loc} value={loc}>
-                        {loc}
+                        {loc === 'Boma' ? t.bomaBranch : t.geitaBranch}
                       </option>
                     ))}
                   </select>
@@ -210,7 +216,7 @@ function Login() {
 
               <div className="form-group">
                 <label htmlFor="password" className="form-label">
-                  Password
+                  {t.password}
                 </label>
                 <div className="password-input-wrapper">
                   <input
@@ -220,14 +226,14 @@ function Login() {
                     className="form-control password-input"
                     value={formData.password}
                     onChange={handleChange}
-                    placeholder="Enter your password"
+                    placeholder={t.enterPassword}
                     required
                   />
                   <button
                     type="button"
                     className="password-toggle-btn"
                     onClick={() => setShowPassword(!showPassword)}
-                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                    aria-label={showPassword ? t.hidePassword : t.showPassword}
                   >
                     {showPassword ? (
                       <FaEyeSlash className="password-icon" />
@@ -249,32 +255,32 @@ function Login() {
                     onChange={handleChange}
                   />
                   <label htmlFor="rememberMe" className="form-check-label">
-                    Remember me
+                    {t.rememberMe}
                   </label>
                 </div>
                 <a href="#forgot-password" className="forgot-password-link">
-                  Forgot Password?
+                  {t.forgotPassword}
                 </a>
               </div>
 
               <button type="submit" className="login-btn" disabled={loading}>
-                {loading ? <ButtonLoader message="Logging in..." size="sm" /> : 'Login'}
+                {loading ? <ButtonLoader message={t.loggingIn} size="sm" /> : t.login}
               </button>
             </form>
 
             <div className="login-footer-text">
               {isAdminLogin ? (
                 <p>
-                  Employee?{' '}
+                  {t.employeeQuestion}{' '}
                   <button type="button" className="register-link login-switch-link" onClick={switchToEmployeeLogin}>
-                    Sign in with location
+                    {t.signInWithLocation}
                   </button>
                 </p>
               ) : (
                 <p>
-                  Admin?{' '}
+                  {t.adminQuestion}{' '}
                   <button type="button" className="register-link login-switch-link" onClick={switchToAdminLogin}>
-                    Sign in with username
+                    {t.signInWithUsername}
                   </button>
                 </p>
               )}
