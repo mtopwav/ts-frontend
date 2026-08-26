@@ -1,0 +1,35 @@
+/* Hide Google Translate chrome — we drive language from LanguageSelector */
+
+#google_translate_element,
+.goog-te-banner-frame,
+.goog-te-balloon-frame,
+#goog-gt-tt,
+.goog-tooltip,
+.goog-tooltip:hover,
+.goog-text-highlight {
+  display: none !important;
+}
+
+body {
+  top: 0 !important;
+}
+
+.goog-te-gadget {
+  font-size: 0 !important;
+}
+
+iframe.goog-te-banner-frame {
+  display: none !important;
+  visibility: hidden !important;
+  height: 0 !important;
+}
+
+/* Skip translating our language picker itself */
+.language-selector,
+.language-selector * {
+  /* google skips notranslate */
+}
+
+.notranslate {
+  /* marker class for elements that must stay as-is */
+}

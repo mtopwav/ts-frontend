@@ -36,6 +36,7 @@ import BomaMessages from './pages/boma/messages';
 import BomaSales from './pages/boma/sales';
 
 import { getCurrentLanguage } from './utils/translations';
+import PageTranslateBoot from './components/PageTranslateBoot';
 import './App.css';
 
 function App() {
@@ -45,6 +46,7 @@ function App() {
 
   return (
     <BrowserRouter>
+      <PageTranslateBoot />
       <OfflineBanner />
       <Routes>
         <Route path="/" element={<Home />} />

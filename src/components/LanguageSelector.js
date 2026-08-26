@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { FaGlobe } from 'react-icons/fa';
 import { getCurrentLanguage, setCurrentLanguage } from '../utils/translations';
+import { applyPageLanguage } from '../utils/pageTranslate';
 import './LanguageSelector.css';
 
 const LANGUAGES = {
@@ -9,7 +10,8 @@ const LANGUAGES = {
 };
 
 /**
- * System language selector (English / Swahili).
+ * English / Swahili — Swahili uses full-page Google Translate
+ * so every label on screen is translated (not only t.* keys).
  */
 const LanguageSelector = () => {
   const [currentLang, setCurrentLang] = useState(() => getCurrentLanguage());
@@ -22,13 +24,19 @@ const LanguageSelector = () => {
   }, []);
 
   const handleLanguageChange = (lang) => {
+    if (lang === currentLang) {
+      setIsOpen(false);
+      return;
+    }
     const next = setCurrentLanguage(lang);
     setCurrentLang(next);
     setIsOpen(false);
+    // Translates the entire page (sidebars, tables, modals, placeholders…)
+    applyPageLanguage(next, { reload: true });
   };
 
   return (
-    <div className="language-selector">
+    <div className="language-selector notranslate">
       <button
         type="button"
         className="language-selector-btn"

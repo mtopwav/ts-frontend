@@ -753,14 +753,15 @@ export function setCurrentLanguage(lang) {
   return next;
 }
 
-export function getTranslations(lang = getCurrentLanguage()) {
-  const dict = TRANSLATIONS[lang] || TRANSLATIONS.en;
+export function getTranslations(_lang = getCurrentLanguage()) {
+  // Always expose English source strings in the React tree.
+  // Full-page Google Translate (pageTranslate.js) converts the DOM to Swahili
+  // so every label is covered — including hardcoded English text.
+  const dict = TRANSLATIONS.en;
   return new Proxy(dict, {
     get(target, prop) {
       if (typeof prop !== "string") return target[prop];
       if (prop in target) return target[prop];
-      const en = TRANSLATIONS.en[prop];
-      if (en) return en;
       return humanizeKey(prop);
     },
   });
