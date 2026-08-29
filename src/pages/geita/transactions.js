@@ -32,7 +32,7 @@ import { geitaLabels } from './geitaLabels';
 import GeitaSidebar from './components/GeitaSidebar';
 import GeitaPageHeader from './components/GeitaPageHeader';
 import { PageLoader } from '../../components/LoadingSpinner';
-import { BRAND_NAME, DEFAULT_SUPPLIER } from '../../utils/brand';
+import { BRAND_NAME, DEFAULT_SUPPLIER, getPrintCompanyHtml, getPrintTinHtml, BRAND_ADDRESS_GEITA } from '../../utils/brand';
 
 function ManagerTransactions() {
   const navigate = useNavigate();
@@ -337,7 +337,6 @@ function ManagerTransactions() {
     })();
 
     const dateStr = formatDateInvoice(payment.created_at);
-    const trnNo = '182-150-770';
     const invNum = `${isReceipt ? 'RCPT' : 'PAY'}-${payment.id}`;
     const customerName = (payment.customer_name || '—').toUpperCase().replace(/</g, '&lt;');
     const customerPhone = (payment.customer_phone || '—').replace(/</g, '&lt;');
@@ -490,16 +489,10 @@ function ManagerTransactions() {
   <div class="tax-inv-top">
     <div class="tax-inv-left">
       ${logoImg}
-      <div class="tax-inv-company">
-        <h2>${BRAND_NAME}</h2>
-        <p class="tax-inv-address">Dar es Salaam, Tanzania</p>
-        <div class="tax-inv-contact">
-          <span>Tel: +255 757171337</span>
-        </div>
-      </div>
+      ${getPrintCompanyHtml("tax-inv-company", BRAND_ADDRESS_GEITA)}
     </div>
     <div class="tax-inv-meta">
-      <p><strong>TRN NO:</strong> ${(trnNo).replace(/</g, '&lt;')}</p>
+      ${getPrintTinHtml()}
       <p><strong>${isReceipt ? 'Receipt' : 'Invoice'} No:</strong> ${invNum}</p>
       <p><strong>Date:</strong> ${dateStr}</p>
     </div>
@@ -1232,19 +1225,19 @@ function ManagerTransactions() {
       icon: 'question',
       title: 'Approve Transaction',
       html: `
-        <div style="text-align:left;">
-          <label for="manager-payment-type" style="display:block;margin-bottom:6px;font-weight:600;color:var(--primary-dark);">
-            Payment type
-          </label>
-          <select
-            id="manager-payment-type"
-            class="swal2-select"
-            style="box-sizing:border-box;width:100%;margin:0;padding:8px 10px;border-radius:6px;border:1px solid #cbd5e1;background:#f8fafc;color:#0f172a;"
-          >
-            <option value="">-- Select payment type --</option>
-            <option value="Sales">Sales</option>
-            <option value="Loan">Loan</option>
-          </select>
+        <div class="approve-type-picker">
+          <p class="approve-type-label">Payment type</p>
+          <div class="approve-type-options" role="listbox" aria-label="Payment type">
+            <button type="button" class="approve-type-option" data-value="Sales" role="option" aria-selected="false">
+              <span class="approve-type-option-label">Sales</span>
+              <span class="approve-type-option-hint">Direct sale payment</span>
+            </button>
+            <button type="button" class="approve-type-option" data-value="Loan" role="option" aria-selected="false">
+              <span class="approve-type-option-label">Loan</span>
+              <span class="approve-type-option-hint">Record as outstanding loan</span>
+            </button>
+          </div>
+          <input type="hidden" id="manager-payment-type" value="" />
         </div>
       `,
       showCancelButton: true,
@@ -1252,6 +1245,27 @@ function ManagerTransactions() {
       cancelButtonColor: colors.textMuted,
       confirmButtonText: 'Yes, approve',
       focusConfirm: false,
+      customClass: {
+        popup: 'approve-swal-popup',
+        htmlContainer: 'approve-swal-html',
+        confirmButton: 'approve-swal-confirm',
+        cancelButton: 'approve-swal-cancel',
+      },
+      didOpen: (popup) => {
+        const hidden = popup.querySelector('#manager-payment-type');
+        popup.querySelectorAll('.approve-type-option').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            popup.querySelectorAll('.approve-type-option').forEach((b) => {
+              b.classList.remove('is-selected');
+              b.setAttribute('aria-selected', 'false');
+            });
+            btn.classList.add('is-selected');
+            btn.setAttribute('aria-selected', 'true');
+            if (hidden) hidden.value = btn.getAttribute('data-value') || '';
+            Swal.resetValidationMessage();
+          });
+        });
+      },
       preConfirm: () => {
         const el = document.getElementById('manager-payment-type');
         const val = el ? el.value : '';

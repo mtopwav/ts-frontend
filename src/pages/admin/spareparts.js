@@ -36,6 +36,7 @@ import {
   FaLayerGroup,
   FaIndustry,
   FaCalendarAlt,
+  FaMoneyBillWave,
   FaBell,
   FaPrint,
   FaFilter,
@@ -51,7 +52,7 @@ import ThemeToggle from '../../components/ThemeToggle';
 import LanguageSelector from '../../components/LanguageSelector';
 import { getUnviewedOperationsCount } from '../../utils/notifications';
 import { PageLoader } from '../../components/LoadingSpinner';
-import { BRAND_NAME, DEFAULT_SUPPLIER } from '../../utils/brand';
+import { BRAND_NAME, DEFAULT_SUPPLIER, getPrintCompanyHtml } from '../../utils/brand';
 
 // Register Chart.js components
 ChartJS.register(
@@ -81,6 +82,7 @@ function SpareParts() {
   /** Current stock when opening edit; form quantity is the amount to add. */
   const [editAvailableQuantity, setEditAvailableQuantity] = useState(null);
   const [addingPart, setAddingPart] = useState(false);
+  const [formError, setFormError] = useState('');
   const [spareParts, setSpareParts] = useState([]);
   const [currentDateTime, setCurrentDateTime] = useState('');
   const [notificationCount, setNotificationCount] = useState(0);
@@ -90,7 +92,11 @@ function SpareParts() {
     category: '',
     brand: '',
     quantity: '',
+    buyingPrice: '',
+    wholesalePrice: '',
     retailPrice: '',
+    wholesaleProfit: '',
+    retailProfit: '',
     status: 'In Stock',
     location: '',
     supplier: DEFAULT_SUPPLIER
@@ -175,8 +181,11 @@ function SpareParts() {
           quantityAdded: Number(part.quantity_added) || 0,
           soldoutQuantity: Number(part.soldout_quantity) || 0,
           quantity: part.quantity,
+          buying_price: part.buying_price != null ? Number(part.buying_price) : 0,
           wholesale_price: (part.wholesale_price ?? part.wholesalePrice) != null ? Number(part.wholesale_price ?? part.wholesalePrice) : null,
           retail_price: (part.retail_price ?? part.retailPrice) != null ? Number(part.retail_price ?? part.retailPrice) : null,
+          wholesale_profit: part.wholesale_profit != null ? Number(part.wholesale_profit) : 0,
+          retail_profit: part.retail_profit != null ? Number(part.retail_profit) : 0,
           status: part.status,
           location: part.location,
           supplier: part.supplier,
@@ -307,26 +316,56 @@ function SpareParts() {
     );
   };
 
-  // Format number with commas
+  // Format money with commas (allows decimals)
   const formatNumberWithCommas = (value) => {
-    if (!value) return '';
-    // Remove all non-digit characters
-    const numericValue = value.toString().replace(/\D/g, '');
-    if (!numericValue) return '';
-    // Add commas every three digits from right
-    return numericValue.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    if (value === null || value === undefined || value === '') return '';
+    let s = value.toString().replace(/[^\d.]/g, '');
+    const parts = s.split('.');
+    if (parts.length > 2) s = parts[0] + '.' + parts.slice(1).join('');
+    const [intPart, decPart] = s.split('.');
+    const withCommas = (intPart || '').replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    if (decPart !== undefined) return `${withCommas}.${decPart.slice(0, 2)}`;
+    if (String(value).endsWith('.')) return `${withCommas}.`;
+    return withCommas;
   };
 
   // Parse formatted number back to numeric value
   const parseFormattedNumber = (value) => {
     if (!value) return '';
-    // Remove commas and return numeric string
     return value.toString().replace(/,/g, '');
   };
 
-  const handleRetailPriceChange = (e) => {
-    setFormData({ ...formData, retailPrice: formatNumberWithCommas(e.target.value) });
+  const calcProfits = (buying, wholesale, retail) => {
+    const b = parseFloat(parseFormattedNumber(buying)) || 0;
+    const w = parseFloat(parseFormattedNumber(wholesale));
+    const r = parseFloat(parseFormattedNumber(retail));
+    return {
+      wholesaleProfit: Number.isFinite(w)
+        ? formatNumberWithCommas(String(Math.round(Math.max(0, w - b))))
+        : '',
+      retailProfit: Number.isFinite(r)
+        ? formatNumberWithCommas(String(Math.round(Math.max(0, r - b))))
+        : '',
+    };
   };
+
+  const handleMoneyChange = (field) => (e) => {
+    const nextVal = formatNumberWithCommas(e.target.value);
+    setFormData((prev) => {
+      const next = { ...prev, [field]: nextVal };
+      if (field === 'buyingPrice' || field === 'wholesalePrice' || field === 'retailPrice') {
+        const profits = calcProfits(
+          field === 'buyingPrice' ? nextVal : next.buyingPrice,
+          field === 'wholesalePrice' ? nextVal : next.wholesalePrice,
+          field === 'retailPrice' ? nextVal : next.retailPrice
+        );
+        return { ...next, ...profits };
+      }
+      return next;
+    });
+  };
+
+  const handleRetailPriceChange = handleMoneyChange('retailPrice');
 
   // Quantity: text input that stores numbers only
   const handleQuantityChange = (e) => {
@@ -347,7 +386,11 @@ function SpareParts() {
     category: '',
     brand: '',
     quantity: '',
+    buyingPrice: '',
+    wholesalePrice: '',
     retailPrice: '',
+    wholesaleProfit: '',
+    retailProfit: '',
     status: 'In Stock',
     location: '',
     supplier: DEFAULT_SUPPLIER,
@@ -357,6 +400,7 @@ function SpareParts() {
     setEditingPart(null);
     setEditAvailableQuantity(null);
     setFormData(emptyFormState());
+    setFormError('');
     setShowAddModal(true);
   };
 
@@ -364,12 +408,14 @@ function SpareParts() {
     setShowAddModal(false);
     setEditingPart(null);
     setEditAvailableQuantity(null);
+    setFormError('');
   };
 
   const handleAddPart = async (e) => {
     e.preventDefault();
     setAddingPart(true);
-    
+    setFormError('');
+
     try {
       const needsQuantity = !editingPart;
       // Validation
@@ -379,27 +425,21 @@ function SpareParts() {
         !formData.category ||
         !formData.brand ||
         (needsQuantity && !formData.quantity) ||
+        !formData.buyingPrice ||
         !formData.retailPrice ||
         !formData.location
       ) {
-        Swal.fire({
-          icon: 'error',
-          title: 'Validation Error',
-          text: 'Please fill in all required fields (including retail price).',
-          confirmButtonColor: colors.primary
-        });
+        setFormError('Please fill in all required fields (part, category, brand, quantity, buying price, retail price, location).');
         setAddingPart(false);
         return;
       }
 
+      const buyingVal = parseFloat(parseFormattedNumber(formData.buyingPrice)) || 0;
+      const wholesaleValRaw = parseFormattedNumber(formData.wholesalePrice);
+      const wholesaleVal = wholesaleValRaw === '' ? null : parseFloat(wholesaleValRaw);
       const retailVal = parseFloat(parseFormattedNumber(formData.retailPrice)) || 0;
-      if (retailVal < 0) {
-        Swal.fire({
-          icon: 'error',
-          title: 'Validation Error',
-          text: 'Retail price must be 0 or greater.',
-          confirmButtonColor: colors.primary
-        });
+      if (buyingVal < 0 || retailVal < 0 || (wholesaleVal != null && (Number.isNaN(wholesaleVal) || wholesaleVal < 0))) {
+        setFormError('Prices must be 0 or greater.');
         setAddingPart(false);
         return;
       }
@@ -413,116 +453,101 @@ function SpareParts() {
           (!editingPart || p.id !== editingPart.id)
       );
       if (duplicateAtLocation) {
-        Swal.fire({
-          icon: 'error',
-          title: 'Validation Error',
-          text: 'A spare part with this part number already exists at the selected location. Choose a different location or part number.',
-          confirmButtonColor: colors.primary
-        });
+        setFormError('A spare part with this part number already exists at the selected location. Choose a different location or part number.');
         setAddingPart(false);
         return;
       }
-      
+
       // Find category and brand IDs by name
       const selectedCategory = categories.find(cat => cat.name === formData.category);
       const selectedBrand = brands.find(brand => brand.name === formData.brand);
-      
+
       if (!selectedCategory || !selectedBrand) {
-        Swal.fire({
-          icon: 'error',
-          title: 'Validation Error',
-          text: 'Please select valid category and brand.',
-          confirmButtonColor: colors.primary
-        });
+        setFormError('Please select valid category and brand.');
         setAddingPart(false);
         return;
       }
-      
+
       const baseStock = editingPart ? Number(editAvailableQuantity) || 0 : 0;
       const qtyRaw = String(formData.quantity ?? '').trim();
       let qty;
+      let qtyAdded;
+      let soldout = editingPart ? (Number(editingPart.soldoutQuantity) || 0) : 0;
       let quantityToAdd = 0;
+
       if (editingPart) {
         quantityToAdd = qtyRaw === '' ? 0 : parseInt(qtyRaw, 10);
         if (qtyRaw !== '' && (Number.isNaN(quantityToAdd) || quantityToAdd < 0)) {
-          Swal.fire({
-            icon: 'error',
-            title: 'Validation Error',
-            text: 'Quantity to add must be a valid number (≥ 0), or leave blank to keep stock unchanged.',
-            confirmButtonColor: colors.primary,
-          });
+          setFormError('Quantity to add must be a valid number (≥ 0), or leave blank to keep stock unchanged.');
           setAddingPart(false);
           return;
         }
         qty = baseStock + quantityToAdd;
+        qtyAdded = (Number(editingPart.quantityAdded) || 0) + quantityToAdd;
       } else {
-        qty = parseInt(formData.quantity, 10);
+        qty = parseInt(qtyRaw, 10);
         if (Number.isNaN(qty) || qty < 0) {
-          Swal.fire({
-            icon: 'error',
-            title: 'Validation Error',
-            text: 'Quantity must be a valid number (≥ 0).',
-            confirmButtonColor: colors.primary,
-          });
+          setFormError('Quantity must be a valid number (≥ 0).');
           setAddingPart(false);
           return;
         }
+        qtyAdded = qty;
+        soldout = 0;
       }
+
+      const wholesaleProfit = wholesaleVal != null ? Math.round(Math.max(0, wholesaleVal - buyingVal)) : 0;
+      const retailProfit = Math.round(Math.max(0, retailVal - buyingVal));
+
       const sparePartData = {
         part_name: formData.partName.trim(),
         part_number: formData.partNumber.trim(),
         category_id: selectedCategory.id,
         brand_id: selectedBrand.id,
         quantity: qty,
-        wholesale_price: editingPart?.wholesale_price ?? null,
+        quantity_added: qtyAdded,
+        soldout_quantity: soldout,
+        buying_price: buyingVal,
+        wholesale_price: wholesaleVal,
         retail_price: retailVal,
-        status: formData.status,
+        wholesale_profit: wholesaleProfit,
+        retail_profit: retailProfit,
+        status: formData.status || 'In Stock',
         location: formData.location.trim(),
-        supplier: formData.supplier || DEFAULT_SUPPLIER
+        supplier: (formData.supplier || DEFAULT_SUPPLIER).trim()
       };
-      if (!editingPart) {
-        sparePartData.quantity_added = qty;
-      } else if (quantityToAdd > 0) {
+      if (editingPart && quantityToAdd > 0) {
         sparePartData.quantity_to_add = quantityToAdd;
       }
-      
+
       console.log('Sending spare part data to API:', sparePartData);
-      
+
       // Add or update spare part
       const response = editingPart
         ? await updateSparePart(editingPart.id, sparePartData)
         : await addSparePart(sparePartData);
-      
+
       console.log('API Response:', response);
-      
+
       if (response && response.success) {
-      // Show success message
-      await Swal.fire({
-        icon: 'success',
-        title: 'Success!',
-        text: editingPart ? 'Spare part updated successfully.' : 'Spare part added successfully.',
-        confirmButtonColor: colors.primary,
-        timer: 2000,
-        showConfirmButton: false
-      });
-      
-      // Reset form
-      setFormData(emptyFormState());
-      closeAddSpareModal();
-        
-        // Refresh spare parts list from database
+        setFormError('');
+        await Swal.fire({
+          icon: 'success',
+          title: 'Success!',
+          text: editingPart ? 'Spare part updated successfully.' : 'Spare part added successfully.',
+          confirmButtonColor: colors.primary,
+          timer: 2000,
+          showConfirmButton: false
+        });
+
+        setFormData(emptyFormState());
+        closeAddSpareModal();
         fetchSpareParts();
       } else {
         throw new Error(response.message || 'Failed to add spare part');
       }
     } catch (error) {
       console.error('Error adding spare part:', error);
-      Swal.fire({
-        icon: 'error',
-        title: 'Error',
-        text: error.message || 'Failed to add spare part. Please try again.',
-        confirmButtonColor: colors.primary
-      });
+      setFormError(error.message || 'Failed to add spare part. Please try again.');
     } finally {
       setAddingPart(false);
     }
@@ -536,17 +561,29 @@ function SpareParts() {
   const handleEdit = (part) => {
     setEditingPart(part);
     setEditAvailableQuantity(Number(part.quantity) || 0);
+    const buying = part.buying_price ?? 0;
+    const wholesale = part.wholesale_price;
+    const retail = part.retail_price;
     setFormData({
       partName: part.partName || '',
       partNumber: part.partNumber || '',
       category: part.category || '',
       brand: part.brand || '',
       quantity: '',
-      retailPrice: formatNumberWithCommas(part.retail_price ?? ''),
+      buyingPrice: formatNumberWithCommas(buying),
+      wholesalePrice: wholesale != null ? formatNumberWithCommas(wholesale) : '',
+      retailPrice: retail != null ? formatNumberWithCommas(retail) : '',
+      wholesaleProfit: formatNumberWithCommas(
+        String(Math.round(part.wholesale_profit ?? Math.max(0, (wholesale || 0) - buying)))
+      ),
+      retailProfit: formatNumberWithCommas(
+        String(Math.round(part.retail_profit ?? Math.max(0, (retail || 0) - buying)))
+      ),
       status: part.status || 'In Stock',
       location: part.location || '',
       supplier: part.supplier || DEFAULT_SUPPLIER
     });
+    setFormError('');
     setShowAddModal(true);
   };
 
@@ -686,6 +723,9 @@ function SpareParts() {
             .logo { max-height: 56px; max-width: 140px; object-fit: contain; }
             .company h2 { margin: 0 0 6px 0; font-size: 1.15rem; font-weight: 800; }
             .company p { margin: 0; color: #444; font-size: 10px; line-height: 1.5; }
+            .tax-inv-address { margin: 0; color: #444; font-size: 10px; line-height: 1.5; }
+            .tax-inv-contact { margin-top: 8px; font-size: 10px; color: #555; }
+            .tax-inv-contact span { margin-right: 16px; }
             .meta { text-align: right; min-width: 220px; }
             .meta p { margin: 0 0 6px 0; font-size: 11px; }
             .title { text-align: center; font-size: 1.6rem; font-weight: 800; margin: 18px 0 14px; letter-spacing: 0.05em; }
@@ -708,10 +748,7 @@ function SpareParts() {
           <div class="top">
             <div class="left">
               <img src="${safe(logoUrl)}" alt="Logo" class="logo" />
-              <div class="company">
-                <h2>${BRAND_NAME}</h2>
-                <p>Kilimanjaro, Tanzania<br />Phone: +255 22 123 4567</p>
-              </div>
+              ${getPrintCompanyHtml('company')}
             </div>
             <div class="meta">
               <p><strong>Report:</strong> Spare Parts Inventory</p>
@@ -763,9 +800,14 @@ function SpareParts() {
     }).format(Number.isNaN(num) ? 0 : num);
   };
 
-  // Stock quantity chart: filtered parts, highest stock first (top 12)
+  // Same stock chart style; list most recently added parts (not ranked by quantity)
+  const getPartAddedTime = (part) => {
+    const d = new Date(part.dateAdded || part.createdAt || 0);
+    return Number.isNaN(d.getTime()) ? 0 : d.getTime();
+  };
+
   const partsForChart = [...filteredParts]
-    .sort((a, b) => (Number(b.quantity) || 0) - (Number(a.quantity) || 0))
+    .sort((a, b) => getPartAddedTime(b) - getPartAddedTime(a))
     .slice(0, 12);
   const quantities = partsForChart.map((part) => Number(part.quantity) || 0);
 
@@ -917,6 +959,13 @@ function SpareParts() {
           >
             <FaCalendarAlt className="nav-icon" />
             <span>{t.transactions}</span>
+          </Link>
+          <Link
+            to="/admin/loans"
+            className={'nav-item' + (window.location.pathname === '/admin/loans' ? ' active' : '')}
+          >
+            <FaMoneyBillWave className="nav-icon" />
+            <span>{t.loans}</span>
           </Link>
           <Link to="/admin/reports" className="nav-item">
             <FaChartBar className="nav-icon" />
@@ -1103,7 +1152,7 @@ function SpareParts() {
                   <div>
                     <h2 className="stock-qty-chart-title">{chartTitle}</h2>
                     <p className="stock-qty-chart-subtitle">
-                      Top {partsForChart.length} parts by quantity
+                      Top {partsForChart.length} most recently added parts
                       {showLowStockOnly || locationFilter || searchTerm
                         ? ' · matching current filters'
                         : ''}
@@ -1153,7 +1202,8 @@ function SpareParts() {
                   <th>Quantity Added</th>
                   <th>{t.quantity}</th>
                   <th>Soldout Quantity</th>
-                  <th>Price</th>
+                  <th>{t.wholesalePrice || 'Wholesale Price'}</th>
+                  <th>{t.retailPrice || 'Retail Price'}</th>
                   <th>{t.status}</th>
                   <th>{t.location}</th>
                 </tr>
@@ -1161,7 +1211,7 @@ function SpareParts() {
               <tbody>
                 {sortedFilteredParts.length === 0 ? (
                   <tr>
-                    <td colSpan="12" className="no-data">
+                    <td colSpan="13" className="no-data">
                       {t.noData}
                     </td>
                   </tr>
@@ -1236,6 +1286,7 @@ function SpareParts() {
                         </span>
                       </td>
                       <td>{part.soldoutQuantity}</td>
+                      <td>{formatCurrency(part.wholesale_price)}</td>
                       <td>{formatCurrency(part.retail_price)}</td>
                       <td>
                         <span className={`status-badge ${displayStatus.toLowerCase().replace(' ', '-')}`}>
@@ -1288,6 +1339,19 @@ function SpareParts() {
             </div>
 
             <form onSubmit={handleAddPart} className="sparepart-form-body">
+              {formError ? (
+                <div className="sparepart-form-error" role="alert">
+                  <span className="sparepart-form-error-text">{formError}</span>
+                  <button
+                    type="button"
+                    className="sparepart-form-error-dismiss"
+                    onClick={() => setFormError('')}
+                    aria-label="Dismiss error"
+                  >
+                    ×
+                  </button>
+                </div>
+              ) : null}
               <div className="sparepart-form-grid">
                 <section className="sparepart-form-panel">
                   <h3 className="sparepart-form-panel-title"><FaTag /> {t.partDetails || 'Part details'}</h3>
@@ -1348,13 +1412,28 @@ function SpareParts() {
                     </div>
                   </div>
                   <div className="sparepart-form-field">
+                    <label htmlFor="sparepart-location">{t.location} *</label>
+                    <select
+                      id="sparepart-location"
+                      required
+                      className="sparepart-form-input"
+                      value={formData.location}
+                      onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                    >
+                      <option value="">{t.select || 'Select'} {t.location}</option>
+                      {sparePartLocations.map((loc) => (
+                        <option key={loc} value={loc}>{loc}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="sparepart-form-field">
                     <label htmlFor="sparepart-supplier">{t.supplier}</label>
                     <input
                       id="sparepart-supplier"
                       type="text"
-                      className="sparepart-form-input sparepart-form-input--readonly"
-                      value={formData.supplier}
                       readOnly
+                      className="sparepart-form-input sparepart-form-input--readonly"
+                      value={formData.supplier || DEFAULT_SUPPLIER}
                       placeholder={t.supplier}
                     />
                   </div>
@@ -1362,28 +1441,19 @@ function SpareParts() {
 
                 <section className="sparepart-form-panel sparepart-form-panel--stock">
                   <h3 className="sparepart-form-panel-title"><FaWarehouse /> {t.stockAndPricing || 'Stock & pricing'}</h3>
-                  <div className="sparepart-form-row">
+
+                  {editingPart && (
                     <div className="sparepart-form-field">
-                      <label>{t.status} *</label>
+                      <label>{t.availableQuantity || 'Available quantity'}</label>
                       <input
                         type="text"
                         readOnly
                         className="sparepart-form-input sparepart-form-input--readonly"
-                        value={t.inStock}
+                        value={editAvailableQuantity ?? ''}
                       />
                     </div>
-                    {editingPart && (
-                      <div className="sparepart-form-field">
-                        <label>{t.availableQuantity || 'Available quantity'}</label>
-                        <input
-                          type="text"
-                          readOnly
-                          className="sparepart-form-input sparepart-form-input--readonly"
-                          value={editAvailableQuantity ?? ''}
-                        />
-                      </div>
-                    )}
-                  </div>
+                  )}
+
                   <div className="sparepart-form-field">
                     <label htmlFor="sparepart-quantity">
                       {editingPart ? (t.addToStock || 'Quantity to add') : `${t.quantity} *`}
@@ -1404,33 +1474,73 @@ function SpareParts() {
                       </p>
                     )}
                   </div>
-                  <div className="sparepart-form-field">
-                    <label htmlFor="sparepart-retail">Price (TZS) *</label>
+
+                  <div className="sparepart-form-field sparepart-form-field--wide">
+                    <label htmlFor="sparepart-buying">Buying price (TZS) *</label>
                     <input
-                      id="sparepart-retail"
+                      id="sparepart-buying"
                       type="text"
                       required
                       className="sparepart-form-input sparepart-form-input--amount"
-                      value={formData.retailPrice}
-                      onChange={handleRetailPriceChange}
+                      value={formData.buyingPrice}
+                      onChange={handleMoneyChange('buyingPrice')}
                       placeholder="0"
                     />
                   </div>
-                  <div className="sparepart-form-field">
-                    <label htmlFor="sparepart-location">{t.location} *</label>
-                    <select
-                      id="sparepart-location"
-                      required
-                      className="sparepart-form-input"
-                      value={formData.location}
-                      onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                    >
-                      <option value="">{t.select || 'Select'} {t.location}</option>
-                      {sparePartLocations.map((loc) => (
-                        <option key={loc} value={loc}>{loc}</option>
-                      ))}
-                    </select>
+
+                  <div className="sparepart-form-row">
+                    <div className="sparepart-form-field">
+                      <label htmlFor="sparepart-wholesale">{t.wholesalePrice || 'Wholesale price'} (TZS)</label>
+                      <input
+                        id="sparepart-wholesale"
+                        type="text"
+                        className="sparepart-form-input sparepart-form-input--amount"
+                        value={formData.wholesalePrice}
+                        onChange={handleMoneyChange('wholesalePrice')}
+                        placeholder="0"
+                      />
+                    </div>
+                    <div className="sparepart-form-field">
+                      <label htmlFor="sparepart-retail">{t.retailPrice || 'Retail price'} (TZS) *</label>
+                      <input
+                        id="sparepart-retail"
+                        type="text"
+                        required
+                        className="sparepart-form-input sparepart-form-input--amount"
+                        value={formData.retailPrice}
+                        onChange={handleRetailPriceChange}
+                        placeholder="0"
+                      />
+                    </div>
                   </div>
+
+                  <div className="sparepart-form-row">
+                    <div className="sparepart-form-field">
+                      <label htmlFor="sparepart-w-profit">Wholesale profit (TZS)</label>
+                      <input
+                        id="sparepart-w-profit"
+                        type="text"
+                        readOnly
+                        className="sparepart-form-input sparepart-form-input--readonly"
+                        value={formData.wholesaleProfit}
+                        placeholder="auto"
+                      />
+                    </div>
+                    <div className="sparepart-form-field">
+                      <label htmlFor="sparepart-r-profit">Retail profit (TZS)</label>
+                      <input
+                        id="sparepart-r-profit"
+                        type="text"
+                        readOnly
+                        className="sparepart-form-input sparepart-form-input--readonly"
+                        value={formData.retailProfit}
+                        placeholder="auto"
+                      />
+                    </div>
+                  </div>
+                  <p className="sparepart-form-hint">
+                    Profits are calculated as selling price − buying price.
+                  </p>
                 </section>
               </div>
 

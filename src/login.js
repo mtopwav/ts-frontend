@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { login } from './services/api';
 import './login.css';
 import logo from './images/logo.png';
@@ -18,6 +18,7 @@ const BRANCH_DASHBOARD = {
 
 function Login() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { t } = useTranslation();
   const [isAdminLogin, setIsAdminLogin] = useState(false);
   const [formData, setFormData] = useState({
@@ -29,6 +30,16 @@ function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (location.state?.idleLogout) {
+      setError(
+        t.sessionExpiredIdle ||
+          'You were logged out after 10 minutes of inactivity. Please sign in again.'
+      );
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [location.state, location.pathname, navigate, t.sessionExpiredIdle]);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;

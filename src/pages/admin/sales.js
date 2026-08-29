@@ -22,6 +22,7 @@ import {
   FaTimesCircle,
   FaClock,
   FaCalendarAlt,
+  FaMoneyBillWave,
   FaBell,
   FaTimes,
   FaPrint,
@@ -39,7 +40,7 @@ import ThemeToggle from '../../components/ThemeToggle';
 import LanguageSelector from '../../components/LanguageSelector';
 import { getUnviewedOperationsCount } from '../../utils/notifications';
 import { PageLoader, ButtonLoader } from '../../components/LoadingSpinner';
-import { BRAND_NAME, DEFAULT_SUPPLIER } from '../../utils/brand';
+import { BRAND_NAME, DEFAULT_SUPPLIER, getPrintCompanyHtml, getPrintTinHtml } from '../../utils/brand';
 import { BRANCH_BOMA, BRANCH_GEITA } from '../../utils/branchLocations';
 
 function Sales() {
@@ -321,7 +322,6 @@ function Sales() {
     const amountRemain = Math.max(0, totalAmountFinal - amountReceived);
 
     const dateStr = formatDateInvoice(payment.created_at);
-    const trnNo = '182-150-770';
     const invNum = `RCPT-${payment.id}`;
     const customerName = (payment.customer_name || '—').replace(/</g, '&lt;');
 
@@ -420,16 +420,10 @@ function Sales() {
   <div class="tax-inv-top">
     <div class="tax-inv-left">
       ${logoImg}
-      <div class="tax-inv-company">
-        <h2>${BRAND_NAME}</h2>
-        <p class="tax-inv-address">Kilimanjaro, Tanzania</p>
-        <div class="tax-inv-contact">
-          <span>Tel: +255 757171337</span>
-        </div>
-      </div>
+      ${getPrintCompanyHtml()}
     </div>
     <div class="tax-inv-meta">
-      <p><strong>TRN NO:</strong> ${(trnNo).replace(/</g, '&lt;')}</p>
+      ${getPrintTinHtml()}
       <p><strong>Receipt No:</strong> ${invNum}</p>
       <p><strong>Date:</strong> ${dateStr}</p>
     </div>
@@ -903,6 +897,13 @@ function Sales() {
           >
             <FaCalendarAlt className="nav-icon" />
             <span>{t.transactions}</span>
+          </Link>
+          <Link
+            to="/admin/loans"
+            className={'nav-item' + (window.location.pathname === '/admin/loans' ? ' active' : '')}
+          >
+            <FaMoneyBillWave className="nav-icon" />
+            <span>{t.loans}</span>
           </Link>
           <Link to="/admin/reports" className="nav-item">
             <FaChartBar className="nav-icon" />

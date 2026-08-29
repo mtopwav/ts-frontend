@@ -24,7 +24,7 @@ import { capitalizeName } from './geitaUtils';
 import GeitaSidebar from './components/GeitaSidebar';
 import GeitaPageHeader from './components/GeitaPageHeader';
 import { PageLoader, InlineLoader } from '../../components/LoadingSpinner';
-import { BRAND_NAME, DEFAULT_SUPPLIER } from '../../utils/brand';
+import { BRAND_NAME, DEFAULT_SUPPLIER, getPrintCompanyHtml, BRAND_ADDRESS_GEITA } from '../../utils/brand';
 
 function getTodayDateString(date = new Date()) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
@@ -552,6 +552,8 @@ function ManagerReports() {
               letter-spacing: 0.02em;
             }
             .tax-inv-address { margin: 0; color: #444; font-size: 10px; line-height: 1.5; }
+            .tax-inv-contact { margin-top: 8px; font-size: 10px; color: #555; }
+            .tax-inv-contact span { margin-right: 16px; }
             .tax-inv-meta { text-align: right; min-width: 180px; }
             .tax-inv-meta p { margin: 0 0 6px 0; font-size: 11px; }
             .tax-inv-title {
@@ -606,13 +608,7 @@ function ManagerReports() {
           <div class="tax-inv-top">
             <div class="tax-inv-left">
               <img src="${String(logoSrcForPrint).replace(/"/g, '&quot;')}" alt="Logo" class="tax-inv-logo" />
-              <div class="tax-inv-company">
-                <h2>${BRAND_NAME}</h2>
-                <p class="tax-inv-address">
-                  Dar es Salaam, Tanzania<br />
-                  Phone: +255 22 123 4567
-                </p>
-              </div>
+              ${getPrintCompanyHtml("tax-inv-company", BRAND_ADDRESS_GEITA)}
             </div>
             <div class="tax-inv-meta">
               <p><strong>Report:</strong> ${geitaLabels.transactionsReportDesc}</p>
@@ -766,6 +762,8 @@ function ManagerReports() {
               letter-spacing: 0.02em;
             }
             .tax-inv-address { margin: 0; color: #444; font-size: 10px; line-height: 1.5; }
+            .tax-inv-contact { margin-top: 8px; font-size: 10px; color: #555; }
+            .tax-inv-contact span { margin-right: 16px; }
             .tax-inv-meta { text-align: right; min-width: 180px; }
             .tax-inv-meta p { margin: 0 0 6px 0; font-size: 11px; }
             .tax-inv-title {
@@ -820,13 +818,7 @@ function ManagerReports() {
           <div class="tax-inv-top">
             <div class="tax-inv-left">
               <img src="${String(logoSrcForPrint).replace(/"/g, '&quot;')}" alt="Logo" class="tax-inv-logo" />
-              <div class="tax-inv-company">
-                <h2>${BRAND_NAME}</h2>
-                <p class="tax-inv-address">
-                  Dar es Salaam, Tanzania<br />
-                  Phone: +255 22 123 4567
-                </p>
-              </div>
+              ${getPrintCompanyHtml("tax-inv-company", BRAND_ADDRESS_GEITA)}
             </div>
             <div class="tax-inv-meta">
               <p><strong>Report:</strong> ${geitaLabels.salesReportDesc}</p>
@@ -880,7 +872,7 @@ function ManagerReports() {
       const bodies = list
         .map(
           (p) =>
-            `<div class="receipt-print-page">${buildReceiptBodyHtml(p, logoSrcForPrint)}</div>`
+            `<div class="receipt-print-page">${buildReceiptBodyHtml(p, logoSrcForPrint, BRAND_ADDRESS_GEITA)}</div>`
         )
         .join('');
       const html = `<!DOCTYPE html>
@@ -965,11 +957,7 @@ function ManagerReports() {
   <div class="tax-inv-top">
     <div class="tax-inv-left">
       <img src="${String(logoSrcForPrint).replace(/"/g, '&quot;')}" alt="Logo" class="tax-inv-logo" />
-      <div class="tax-inv-company">
-        <h2>${BRAND_NAME}</h2>
-        <p class="tax-inv-address">Dar es Salaam, Tanzania</p>
-        <div class="tax-inv-contact"><span>Tel: +255 757171337</span></div>
-      </div>
+      ${getPrintCompanyHtml("tax-inv-company", BRAND_ADDRESS_GEITA)}
     </div>
     <div class="tax-inv-meta">
       <p><strong>TRN NO:</strong> 182-150-770</p>

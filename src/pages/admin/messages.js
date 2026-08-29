@@ -15,6 +15,7 @@ import {
   FaUser,
   FaTags,
   FaCalendarAlt,
+  FaMoneyBillWave,
   FaBell
 } from 'react-icons/fa';
 import logo from '../../images/logo1.png';
@@ -137,6 +138,14 @@ function Messages() {
           >
             <FaCalendarAlt style={{ fontSize: '1.2rem', minWidth: '20px' }} />
             <span style={{ opacity: sidebarOpen ? 1 : 0, width: sidebarOpen ? 'auto' : 0, overflow: 'hidden', transition: 'opacity 0.3s' }}>{t.transactions}</span>
+          </Link>
+          <Link
+            to="/admin/loans"
+            className={'nav-item' + (window.location.pathname === '/admin/loans' ? ' active' : '')}
+            style={{ display: 'flex', alignItems: 'center', gap: '15px', padding: '15px 20px', color: 'rgba(255, 255, 255, 0.8)', textDecoration: 'none', transition: 'all 0.3s', borderLeft: '3px solid transparent' }}
+          >
+            <FaMoneyBillWave style={{ fontSize: '1.2rem', minWidth: '20px' }} />
+            <span style={{ opacity: sidebarOpen ? 1 : 0, width: sidebarOpen ? 'auto' : 0, overflow: 'hidden', transition: 'opacity 0.3s' }}>{t.loans}</span>
           </Link>
           <Link to="/admin/reports" className="nav-item" style={{ display: 'flex', alignItems: 'center', gap: '15px', padding: '15px 20px', color: 'rgba(255, 255, 255, 0.8)', textDecoration: 'none', transition: 'all 0.3s', borderLeft: '3px solid transparent' }}>
             <FaChartBar style={{ fontSize: '1.2rem', minWidth: '20px' }} />

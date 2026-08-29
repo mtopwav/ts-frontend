@@ -10,6 +10,7 @@ import AdminSpareParts from './pages/admin/spareparts';
 import AdminSales from './pages/admin/sales';
 import AdminEmployees from './pages/admin/employees';
 import AdminTransactions from './pages/admin/transactions';
+import AdminLoans from './pages/admin/loans';
 import AdminReports from './pages/admin/reports';
 import AdminSettings from './pages/admin/setting';
 import AdminFinances from './pages/admin/finances';
@@ -37,6 +38,7 @@ import BomaSales from './pages/boma/sales';
 
 import { getCurrentLanguage } from './utils/translations';
 import PageTranslateBoot from './components/PageTranslateBoot';
+import IdleLogout from './components/IdleLogout';
 import './App.css';
 
 function App() {
@@ -47,6 +49,7 @@ function App() {
   return (
     <BrowserRouter>
       <PageTranslateBoot />
+      <IdleLogout />
       <OfflineBanner />
       <Routes>
         <Route path="/" element={<Home />} />
@@ -59,6 +62,7 @@ function App() {
         <Route path="/admin/sales" element={<AdminSales />} />
         <Route path="/admin/employees" element={<AdminEmployees />} />
         <Route path="/admin/transactions" element={<AdminTransactions />} />
+        <Route path="/admin/loans" element={<AdminLoans />} />
         <Route path="/admin/reports" element={<AdminReports />} />
         <Route path="/admin/settings" element={<AdminSettings />} />
         <Route path="/admin/finances" element={<AdminFinances />} />

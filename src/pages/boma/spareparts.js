@@ -31,7 +31,7 @@ import { bomaLabels, bomaUserName } from './bomaLabels';
 import BomaSidebar from './components/BomaSidebar';
 import BomaPageHeader from './components/BomaPageHeader';
 import { PageLoader, InlineLoader } from '../../components/LoadingSpinner';
-import { BRAND_NAME, DEFAULT_SUPPLIER } from '../../utils/brand';
+import { BRAND_NAME, DEFAULT_SUPPLIER, getPrintCompanyHtml } from '../../utils/brand';
 
 const LOW_STOCK_THRESHOLD = 10;
 const BOMA_BRANCH_LOCATION = BRANCH_BOMA;
@@ -287,6 +287,7 @@ function ManagerSpareparts() {
                   <td class="tr">${qtyAdded}</td>
                   <td class="tr ${isLow ? 'qty-low' : ''}">${qty}</td>
                   <td class="tr">${soldout}</td>
+                  <td class="tr">${safe(formatPrice(p.wholesale_price))}</td>
                   <td class="tr">${safe(formatPrice(p.retail_price))}</td>
                 </tr>
               `;
@@ -323,6 +324,9 @@ function ManagerSpareparts() {
             .logo { max-height: 56px; max-width: 140px; object-fit: contain; }
             .company h2 { margin: 0 0 6px 0; font-size: 1.15rem; font-weight: 800; }
             .company p { margin: 0; color: #444; font-size: 10px; line-height: 1.5; }
+            .tax-inv-address { margin: 0; color: #444; font-size: 10px; line-height: 1.5; }
+            .tax-inv-contact { margin-top: 8px; font-size: 10px; color: #555; }
+            .tax-inv-contact span { margin-right: 16px; }
             .meta { text-align: right; min-width: 220px; }
             .meta p { margin: 0 0 6px 0; font-size: 11px; }
             .title {
@@ -366,10 +370,7 @@ function ManagerSpareparts() {
           <div class="top">
             <div class="left">
               <img src="${safe(logoUrl)}" alt="Logo" class="logo" />
-              <div class="company">
-                <h2>${BRAND_NAME}</h2>
-                <p>Kilimanjaro, Tanzania<br />Phone: +255 22 123 4567</p>
-              </div>
+              ${getPrintCompanyHtml('company')}
             </div>
             <div class="meta">
               <p><strong>Report:</strong> ${bomaLabels.sparePartsInventoryReport}</p>
@@ -394,7 +395,8 @@ function ManagerSpareparts() {
                 <th class="tr">Quantity added</th>
                 <th class="tr">Quantity</th>
                 <th class="tr">Soldout quantity</th>
-                <th class="tr">Price (TZS)</th>
+                <th class="tr">Wholesale price (TZS)</th>
+                <th class="tr">Retail price (TZS)</th>
               </tr>
             </thead>
             <tbody>
@@ -712,17 +714,18 @@ function ManagerSpareparts() {
                     <th>Quantity Added</th>
                     <th>Quantity</th>
                     <th>Soldout Quantity</th>
-                    <th>Price (TZS)</th>
+                    <th>{t.wholesalePrice || 'Wholesale Price'} (TZS)</th>
+                    <th>{t.retailPrice || 'Retail Price'} (TZS)</th>
                   </tr>
                 </thead>
                 <tbody>
                   {dataLoading ? (
                     <tr>
-                      <td colSpan="10" className="no-data loading-cell"><InlineLoader message={t.loadingSpareParts} size="md" /></td>
+                      <td colSpan="11" className="no-data loading-cell"><InlineLoader message={t.loadingSpareParts} size="md" /></td>
                     </tr>
                   ) : sortedParts.length === 0 ? (
                     <tr>
-                      <td colSpan="10" className="no-data">
+                      <td colSpan="11" className="no-data">
                         No spare parts found
                       </td>
                     </tr>
@@ -760,6 +763,7 @@ function ManagerSpareparts() {
                             <span className={qtyClass}>{qty}</span>
                           </td>
                           <td>{Number(p.soldout_quantity) || 0}</td>
+                          <td>{formatPrice(p.wholesale_price)}</td>
                           <td>{formatPrice(p.retail_price)}</td>
                         </tr>
                       );

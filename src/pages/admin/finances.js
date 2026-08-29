@@ -30,6 +30,7 @@ import {
   FaClock,
   FaHistory,
   FaCalendarAlt,
+  FaMoneyBillWave,
   FaBell
 } from 'react-icons/fa';
 import './categories&brands.css';
@@ -557,6 +558,13 @@ function Finances() {
           >
             <FaCalendarAlt className="nav-icon" />
             <span>{t.transactions}</span>
+          </Link>
+          <Link
+            to="/admin/loans"
+            className={'nav-item' + (window.location.pathname === '/admin/loans' ? ' active' : '')}
+          >
+            <FaMoneyBillWave className="nav-icon" />
+            <span>{t.loans}</span>
           </Link>
           <Link to="/admin/reports" className="nav-item">
             <FaChartBar className="nav-icon" />

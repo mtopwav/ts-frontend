@@ -21,6 +21,7 @@ import {
   FaUsers,
   FaCog,
   FaCalendarAlt,
+  FaMoneyBillWave,
   FaChartBar,
   FaTrash,
 } from 'react-icons/fa';
@@ -33,7 +34,7 @@ import LanguageSelector from '../../components/LanguageSelector';
 import BrandDatePicker from '../../components/BrandDatePicker';
 import { useTranslation } from '../../utils/useTranslation';
 import { PageLoader } from '../../components/LoadingSpinner';
-import { BRAND_NAME, DEFAULT_SUPPLIER } from '../../utils/brand';
+import { BRAND_NAME, DEFAULT_SUPPLIER, getPrintCompanyHtml } from '../../utils/brand';
 import { BRANCH_BOMA, BRANCH_GEITA } from '../../utils/branchLocations';
 import { formatDateTime as formatSystemDateTime } from '../../utils/dateTime';
 
@@ -468,6 +469,8 @@ function AdminTransactions() {
               letter-spacing: 0.02em;
             }
             .tax-inv-address { margin: 0; color: #444; font-size: 10px; line-height: 1.5; }
+            .tax-inv-contact { margin-top: 8px; font-size: 10px; color: #555; }
+            .tax-inv-contact span { margin-right: 16px; }
             .tax-inv-meta { text-align: right; min-width: 180px; }
             .tax-inv-meta p { margin: 0 0 6px 0; font-size: 11px; }
             .tax-inv-title {
@@ -522,13 +525,7 @@ function AdminTransactions() {
           <div class="tax-inv-top">
             <div class="tax-inv-left">
               <img src="${String(logoSrcForPrint).replace(/"/g, '&quot;')}" alt="Logo" class="tax-inv-logo" />
-              <div class="tax-inv-company">
-                <h2>${BRAND_NAME}</h2>
-                <p class="tax-inv-address">
-                  Kilimanjaro, Tanzania<br />
-                  Phone: +255 22 123 4567
-                </p>
-              </div>
+              ${getPrintCompanyHtml()}
             </div>
             <div class="tax-inv-meta">
               <p><strong>Report:</strong> Accountant Transactions</p>
@@ -602,6 +599,10 @@ function AdminTransactions() {
           <Link to="/admin/transactions" className={'nav-item' + (location.pathname === '/admin/transactions' ? ' active' : '')}>
             <FaCalendarAlt className="nav-icon" />
             <span>{t.transactions}</span>
+          </Link>
+          <Link to="/admin/loans" className={'nav-item' + (location.pathname === '/admin/loans' ? ' active' : '')}>
+            <FaMoneyBillWave className="nav-icon" />
+            <span>{t.loans}</span>
           </Link>
           <Link to="/admin/reports" className={'nav-item' + (location.pathname === '/admin/reports' ? ' active' : '')}>
             <FaChartBar className="nav-icon" />

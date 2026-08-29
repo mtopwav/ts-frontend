@@ -35,7 +35,7 @@ import BrandDatePicker from '../../components/BrandDatePicker';
 import { getUnviewedOperationsCount } from '../../utils/notifications';
 import { getPayments, getEmployees } from '../../services/api';
 import { PageLoader } from '../../components/LoadingSpinner';
-import { BRAND_NAME, DEFAULT_SUPPLIER } from '../../utils/brand';
+import { BRAND_NAME, DEFAULT_SUPPLIER, getPrintCompanyHtml } from '../../utils/brand';
 
 function AdminReports() {
   const navigate = useNavigate();
@@ -230,6 +230,10 @@ function AdminReports() {
         .top { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:20px; border-bottom:2px solid #333; padding-bottom:14px; }
         .left { display:flex; gap:14px; align-items:flex-start; }
         .logo { width:56px; height:56px; object-fit:contain; }
+        .company h2 { margin: 0 0 6px 0; font-size: 1.15rem; font-weight: 700; }
+        .tax-inv-address { margin: 0; color: #444; font-size: 10px; line-height: 1.5; }
+        .tax-inv-contact { margin-top: 8px; font-size: 10px; color: #555; }
+        .tax-inv-contact span { margin-right: 16px; }
         .title { text-align:center; font-size:1.5rem; font-weight:700; margin:16px 0; }
         table { width:100%; border-collapse:collapse; border:1px solid #333; margin-bottom:16px; }
         th, td { border:1px solid #333; padding:6px 8px; }
@@ -237,7 +241,7 @@ function AdminReports() {
         .tr { text-align:right; } .tc { text-align:center; } .tl { text-align:left; }
         .footer { border-top:1px solid #ccc; padding-top:10px; margin-top:10px; }
       </style></head><body>
-      <div class="top"><div class="left"><img src="${logo}" class="logo" alt="logo"/><div><strong>${BRAND_NAME}</strong><div>Kilimanjaro, Tanzania</div></div></div><div>Printed: ${new Date().toLocaleString('en-GB')}</div></div>
+      <div class="top"><div class="left"><img src="${logo}" class="logo" alt="logo"/>${getPrintCompanyHtml('company')}</div><div>Printed: ${new Date().toLocaleString('en-GB')}</div></div>
       <div class="title">${title}</div>
       <table>${rowsHtml}</table>
       <div class="footer">${footerHtml}</div>
@@ -335,6 +339,13 @@ function AdminReports() {
           >
             <FaCalendarAlt className="nav-icon" />
             <span>{t.transactions}</span>
+          </Link>
+          <Link
+            to="/admin/loans"
+            className={'nav-item' + (location.pathname === '/admin/loans' ? ' active' : '')}
+          >
+            <FaMoneyBillWave className="nav-icon" />
+            <span>{t.loans}</span>
           </Link>
           <Link to="/admin/reports" className="nav-item active">
             <FaChartBar className="nav-icon" />

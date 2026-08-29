@@ -1303,3 +1303,99 @@
     justify-content: flex-start;
   }
 }
+
+/* Approve transaction modal — payment type picker */
+.approve-swal-popup {
+  border-radius: 14px !important;
+  padding-bottom: 1.25rem !important;
+}
+
+.approve-swal-html {
+  margin: 0.5rem 0 0 !important;
+  overflow: visible !important;
+}
+
+.approve-type-picker {
+  text-align: left;
+  width: 100%;
+}
+
+.approve-type-label {
+  margin: 0 0 10px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #562731;
+}
+
+.approve-type-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.approve-type-option {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background: #fff;
+  color: #222;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.2s ease;
+}
+
+.approve-type-option:hover {
+  background: linear-gradient(135deg, rgba(86, 39, 49, 0.1), rgba(86, 39, 49, 0.04));
+  border-color: #d7c4c8;
+  transform: translateX(2px);
+  box-shadow: inset 3px 0 0 #562731;
+}
+
+.approve-type-option.is-selected {
+  background: rgba(86, 39, 49, 0.1);
+  border-color: #562731;
+  box-shadow: inset 3px 0 0 #562731;
+}
+
+.approve-type-option-label {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #111;
+}
+
+.approve-type-option.is-selected .approve-type-option-label,
+.approve-type-option:hover .approve-type-option-label {
+  color: #562731;
+}
+
+.approve-type-option-hint {
+  font-size: 0.78rem;
+  color: #6b7280;
+  line-height: 1.35;
+}
+
+.approve-type-option.is-selected .approve-type-option-hint {
+  color: #562731;
+  opacity: 0.8;
+}
+
+.approve-swal-confirm {
+  border-radius: 8px !important;
+  font-weight: 600 !important;
+}
+
+.approve-swal-cancel {
+  border-radius: 8px !important;
+  font-weight: 600 !important;
+}

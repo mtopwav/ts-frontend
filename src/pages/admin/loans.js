@@ -2,7 +2,7 @@ import { colors } from '../../utils/colors';
 import React, { useState, useEffect, useRef } from 'react';
 import { useResponsiveSidebar } from '../../utils/useResponsiveSidebar';
 import SidebarBackdrop from '../../components/SidebarBackdrop';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import Swal from 'sweetalert2';
 import {
   FaSearch,
@@ -19,30 +19,45 @@ import {
   FaPrint,
   FaDownload,
   FaUser,
+  FaChartLine,
+  FaBars,
+  FaSignOutAlt,
+  FaTags,
+  FaShoppingCart,
+  FaCog,
+  FaCalendarAlt,
+  FaChartBar,
+  FaFilter,
+  FaChevronDown,
+  FaMapMarkerAlt,
 } from 'react-icons/fa';
-import './manager-layout.css';
+import './dashboard.css';
+import '../boma/manager-layout.css';
 import './loans.css';
-import logo from '../../images/logo.png';
-import { getPayments, updatePaymentDetails, createLoanFromPayment, deletePayment, getSpareParts } from '../../services/api';
+import logo from '../../images/logo1.png';
+import { getPayments, updatePaymentDetails, createLoanFromPayment, deletePayment, getSpareParts, updateLoanStatus } from '../../services/api';
 import { getCurrentDateTime } from '../../utils/dateTime';
 import { useTranslation } from '../../utils/useTranslation';
-import { canAccessBranch } from '../../utils/branchAuth';
-import { BRANCH_GEITA } from '../../utils/branchLocations';
-import { geitaLabels } from './geitaLabels';
-import GeitaSidebar from './components/GeitaSidebar';
-import GeitaPageHeader from './components/GeitaPageHeader';
+import ThemeToggle from '../../components/ThemeToggle';
+import LanguageSelector from '../../components/LanguageSelector';
+import BrandDatePicker from '../../components/BrandDatePicker';
 import { PageLoader } from '../../components/LoadingSpinner';
-import { BRAND_NAME, DEFAULT_SUPPLIER, getPrintCompanyHtml, BRAND_ADDRESS_GEITA } from '../../utils/brand';
+import { BRAND_NAME, DEFAULT_SUPPLIER, getPrintCompanyHtml, getPrintTinHtml } from '../../utils/brand';
+import { BRANCH_BOMA, BRANCH_GEITA } from '../../utils/branchLocations';
 
-function ManagerLoans() {
+function AdminLoans() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { t } = useTranslation();
   const [user, setUser] = useState(null);
   const { sidebarOpen, isMobile, toggleSidebar, closeSidebar } = useResponsiveSidebar();
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
+  const [branchFilter, setBranchFilter] = useState('All');
   const [timeFilter, setTimeFilter] = useState('all');
+  const [openFilter, setOpenFilter] = useState(null);
+  const loansFiltersRef = useRef(null);
   const [customDateFrom, setCustomDateFrom] = useState('');
   const [customDateTo, setCustomDateTo] = useState('');
   const [showPaidTodayOnly, setShowPaidTodayOnly] = useState(false);
@@ -81,35 +96,33 @@ function ManagerLoans() {
   const [addLoanStatus, setAddLoanStatus] = useState('Pending');
   const [addLoanSaving, setAddLoanSaving] = useState(false);
   const [deletingPaymentId, setDeletingPaymentId] = useState(null);
+  const [updatingLoanStatusId, setUpdatingLoanStatusId] = useState(null);
   const editSaveInFlightRef = useRef(false);
 
   useEffect(() => {
     const userData = localStorage.getItem('user') || sessionStorage.getItem('user');
-    if (userData) {
-      try {
-        const parsedUser = JSON.parse(userData);
-        setUser(parsedUser);
-        if (!canAccessBranch(parsedUser, 'geita')) {
-          setLoading(false);
-          navigate('/login');
-          return;
-        }
-      } catch (error) {
-        setLoading(false);
-        setTimeout(() => navigate('/login'), 2000);
+    if (!userData) {
+      navigate('/login');
+      return;
+    }
+
+    try {
+      const parsedUser = JSON.parse(userData);
+      setUser(parsedUser);
+      if (parsedUser.userType !== 'admin') {
+        navigate('/login');
         return;
       }
-    } else {
-      setLoading(false);
-      setTimeout(() => navigate('/login'), 1000);
+    } catch {
+      navigate('/login');
       return;
     }
 
     const loadPayments = async () => {
       try {
         const [response, sparepartsResponse] = await Promise.all([
-          getPayments({ location: BRANCH_GEITA }),
-          getSpareParts(BRANCH_GEITA)
+          getPayments(),
+          getSpareParts()
         ]);
         if (response.success && response.payments) setPayments(response.payments);
         if (sparepartsResponse.success && Array.isArray(sparepartsResponse.spareparts)) {
@@ -135,6 +148,16 @@ function ManagerLoans() {
     }, 1000);
     return () => clearInterval(intervalId);
   }, [navigate]);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (loansFiltersRef.current && !loansFiltersRef.current.contains(event.target)) {
+        setOpenFilter(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // Load logo as data URL for print document (ensures logo appears in new window)
   useEffect(() => {
@@ -284,6 +307,25 @@ function ManagerLoans() {
       return `${day}/${month}/${year} ${hours}:${minutes}`;
     } catch (error) {
       return dateString;
+    }
+  };
+
+  // Countdown until 24h after approval. Decreases every second. Format: HH:MM:SS.
+  const formatSendMessageCountdown = (approvedAt) => {
+    if (!approvedAt) return '—';
+    try {
+      const approved = new Date(approvedAt);
+      if (isNaN(approved.getTime())) return '—';
+      const deadline = new Date(approved.getTime() + 24 * 60 * 60 * 1000);
+      const remainingMs = deadline.getTime() - now.getTime();
+      if (remainingMs <= 0) return 'Due';
+      const totalSec = Math.floor(remainingMs / 1000);
+      const h = Math.floor(totalSec / 3600);
+      const m = Math.floor((totalSec % 3600) / 60);
+      const s = totalSec % 60;
+      return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+    } catch (error) {
+      return '—';
     }
   };
 
@@ -530,9 +572,10 @@ function ManagerLoans() {
           <div class="tax-inv-top">
             <div class="tax-inv-left">
               <img src="${String(logoSrcForPrint).replace(/"/g, '&quot;')}" alt="Logo" class="tax-inv-logo" />
-              ${getPrintCompanyHtml("tax-inv-company", BRAND_ADDRESS_GEITA)}
+              ${getPrintCompanyHtml()}
             </div>
             <div class="tax-inv-meta">
+              ${getPrintTinHtml()}
               <p><strong>Report:</strong> ${String(reportLabel).replace(/</g, '&lt;')}</p>
               <p><strong>Period:</strong> ${String(dateRangeLabel).replace(/</g, '&lt;')}</p>
               <p><strong>Printed:</strong> ${new Date().toLocaleString('en-GB')}</p>
@@ -580,6 +623,14 @@ function ManagerLoans() {
     printWindow.document.close();
     printWindow.focus();
     printWindow.print();
+  };
+
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat('en-TZ', {
+      style: 'currency',
+      currency: 'TZS',
+      minimumFractionDigits: 0
+    }).format(amount || 0);
   };
 
   const formatDateInvoice = (dateStr) => {
@@ -779,10 +830,10 @@ function ManagerLoans() {
           <div class="tax-inv-top">
             <div class="tax-inv-left">
               <img src="${String(logoSrcForPrint).replace(/"/g, '&quot;')}" alt="Logo" class="tax-inv-logo" />
-              ${getPrintCompanyHtml("tax-inv-company", BRAND_ADDRESS_GEITA)}
+              ${getPrintCompanyHtml()}
             </div>
             <div class="tax-inv-meta">
-              <p><strong>TIN:</strong> 123-456-789</p>
+              ${getPrintTinHtml()}
               <p><strong>Loan ID:</strong> #${payment.id}</p>
               <p><strong>Date:</strong> ${formatDateInvoice(payment.created_at)}</p>
             </div>
@@ -979,6 +1030,111 @@ function ManagerLoans() {
     }
   };
 
+  const handleChangeLoanStatus = async (payment) => {
+    if (!payment?.id) return;
+    const current = String(payment.loan_status || '').trim() || 'Pending';
+    const customerLabel = String(payment.customer_name || '').replace(/</g, '&lt;');
+    let selectedStatus = current === 'Approved' || current === 'Rejected' ? current : '';
+
+    const result = await Swal.fire({
+      icon: 'question',
+      title: t.approve || 'Approve Loan',
+      html: `
+        <div class="approve-type-picker">
+          <p class="approve-type-meta">Loan #${payment.id} ${customerLabel}</p>
+          <p class="approve-type-label">${t.loanStatus || 'Loan Status'}</p>
+          <div class="approve-type-options" role="listbox" aria-label="${t.loanStatus || 'Loan Status'}">
+            <button type="button" class="approve-type-option${selectedStatus === 'Approved' ? ' is-selected' : ''}" data-value="Approved" role="option" aria-selected="${selectedStatus === 'Approved' ? 'true' : 'false'}">
+              <span class="approve-type-option-label">${t.approved || 'Approved'}</span>
+              <span class="approve-type-option-hint">Accept this loan request</span>
+            </button>
+            <button type="button" class="approve-type-option${selectedStatus === 'Rejected' ? ' is-selected' : ''}" data-value="Rejected" role="option" aria-selected="${selectedStatus === 'Rejected' ? 'true' : 'false'}">
+              <span class="approve-type-option-label">${t.rejected || 'Rejected'}</span>
+              <span class="approve-type-option-hint">Decline this loan request</span>
+            </button>
+          </div>
+        </div>
+      `,
+      showCancelButton: true,
+      confirmButtonColor: '#28a745',
+      cancelButtonColor: colors.textMuted,
+      confirmButtonText: t.save || 'Save',
+      cancelButtonText: t.cancel || 'Cancel',
+      focusConfirm: false,
+      allowOutsideClick: () => !Swal.isLoading(),
+      customClass: {
+        popup: 'approve-swal-popup',
+        htmlContainer: 'approve-swal-html',
+        confirmButton: 'approve-swal-confirm',
+        cancelButton: 'approve-swal-cancel',
+      },
+      didOpen: (popup) => {
+        popup.querySelectorAll('.approve-type-option').forEach((btn) => {
+          btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            popup.querySelectorAll('.approve-type-option').forEach((b) => {
+              b.classList.remove('is-selected');
+              b.setAttribute('aria-selected', 'false');
+            });
+            btn.classList.add('is-selected');
+            btn.setAttribute('aria-selected', 'true');
+            selectedStatus = btn.getAttribute('data-value') || '';
+            Swal.resetValidationMessage();
+          });
+        });
+      },
+      preConfirm: () => {
+        if (selectedStatus !== 'Approved' && selectedStatus !== 'Rejected') {
+          Swal.showValidationMessage('Please select Approved or Rejected');
+          return false;
+        }
+        return selectedStatus;
+      },
+    });
+
+    if (!result.isConfirmed || !result.value) return;
+
+    if (result.value === current) {
+      Swal.fire({
+        icon: 'info',
+        title: t.info || 'Info',
+        text: `Loan status is already ${current}.`,
+        timer: 1600,
+        showConfirmButton: false,
+      });
+      return;
+    }
+
+    try {
+      setUpdatingLoanStatusId(payment.id);
+      const response = await updateLoanStatus(payment.id, result.value);
+      if (!response?.success) {
+        throw new Error(response?.message || 'Failed to update loan status.');
+      }
+      setPayments((prev) =>
+        prev.map((p) => (p.id === payment.id ? { ...p, loan_status: result.value } : p))
+      );
+      Swal.fire({
+        icon: 'success',
+        title: t.success || 'Success',
+        text: t.loanStatusUpdated || 'Loan status updated successfully.',
+        timer: 1800,
+        showConfirmButton: false,
+      });
+    } catch (error) {
+      console.error('Error updating loan status:', error);
+      Swal.fire({
+        icon: 'error',
+        title: t.error || 'Error',
+        text: error.message || 'Failed to update loan status.',
+        confirmButtonColor: colors.primary,
+      });
+    } finally {
+      setUpdatingLoanStatusId(null);
+    }
+  };
+
   const handleAddLoan = async () => {
     if (!addLoanPaymentId) {
       Swal.fire({
@@ -1048,7 +1204,7 @@ function ManagerLoans() {
       setAddLoanStatus('Pending');
 
       // Refresh payments list (UI still uses payments as source-of-truth).
-      const refreshed = await getPayments({ location: BRANCH_GEITA });
+      const refreshed = await getPayments();
       if (refreshed.success && refreshed.payments) setPayments(refreshed.payments);
     } catch (error) {
       Swal.fire({
@@ -1155,7 +1311,7 @@ function ManagerLoans() {
       if (!response.success) throw new Error(response.message || 'Failed to update');
       
       // Reload data from database to ensure we have the latest values
-      const refreshResponse = await getPayments({ location: BRANCH_GEITA });
+      const refreshResponse = await getPayments();
       if (refreshResponse.success && refreshResponse.payments) {
         setPayments(refreshResponse.payments);
         const updatedPayment = refreshResponse.payments.find((p) => p.id === selectedPayment.id);
@@ -1246,10 +1402,18 @@ function ManagerLoans() {
     return loanStatus || 'Pending';
   };
 
-  // Base list: loan payments (payment_type = loan)
-  const loansWithRemain = payments.filter((p) => isLoanPaymentType(p));
+  // Base list: loan payments (payment_type = loan), optionally scoped by branch
+  const loansWithRemain = payments.filter((p) => {
+    if (!isLoanPaymentType(p)) return false;
+    if (branchFilter === 'All') return true;
+    return String(p.location || '').trim().toLowerCase() === String(branchFilter).toLowerCase();
+  });
   // For the Add Loan modal: allow inserting from ANY loan-type payment (no remain limitation).
-  const loansForAdd = payments.filter((p) => isLoanPaymentType(p));
+  const loansForAdd = payments.filter((p) => {
+    if (!isLoanPaymentType(p)) return false;
+    if (branchFilter === 'All') return true;
+    return String(p.location || '').trim().toLowerCase() === String(branchFilter).toLowerCase();
+  });
 
   const filteredLoans = loansWithRemain.filter((payment) => {
     const term = searchTerm.toLowerCase();
@@ -1335,17 +1499,24 @@ function ManagerLoans() {
     setAddLoanDiscountInput(p.discount_amount != null ? String(p.discount_amount) : '');
     setAddLoanAmountReceivedInput(p.amount_received != null ? String(p.amount_received) : '');
 
-    const dbRemain = p?.amount_remain != null ? Number(p.amount_remain) : null;
-    const remainVal =
-      dbRemain != null && !Number.isNaN(dbRemain)
-        ? Math.max(0, dbRemain)
-        : Math.max(0, (Number(p?.total_amount) || 0) - (Number(p?.amount_received) || 0));
+    const remainVal = getAmountRemain(p);
     setAddLoanAmountRemainInput(remainVal != null ? String(remainVal) : '');
   }, [
     showAddLoanModal,
     selectedAddLoanPayment,
     addLoanPaymentId,
+    // getAmountRemain is stable within render scope
   ]);
+
+  const totalAmountRemain = filteredLoans.reduce(
+    (sum, p) => sum + getLoanAmountRemainForDisplay(p),
+    0
+  );
+
+  const totalLoanAmount = filteredLoans.reduce(
+    (sum, p) => sum + getLoanNetTotal(p),
+    0
+  );
 
   if (loading) {
     return <PageLoader message={t.loading || 'Loading...'} />;
@@ -1353,83 +1524,245 @@ function ManagerLoans() {
 
   if (!user) return null;
 
+  const statusFilterOptions = [
+    { value: 'All', label: t.allStatus || 'All Status', hint: 'Pending, approved & rejected' },
+    { value: 'Pending', label: t.pending || 'Pending', hint: 'Awaiting loan approval' },
+    { value: 'Approved', label: t.approved || 'Approved', hint: 'Approved loans only' },
+    { value: 'Rejected', label: t.rejected || 'Rejected', hint: 'Rejected loans only' },
+  ];
+
+  const timeFilterOptions = [
+    { value: 'all', label: t.allTime || 'All Time', hint: 'No date limit' },
+    { value: 'today', label: t.today || 'Today', hint: 'Loans from today' },
+    { value: 'week', label: t.last7Days || 'Last 7 days', hint: 'Past week' },
+    { value: 'month', label: t.last30Days || 'Last 30 days', hint: 'Past month' },
+    { value: 'custom', label: t.customRange || 'Custom range', hint: 'Pick from / to dates' },
+  ];
+
+  const branchFilterOptions = [
+    { value: 'All', label: t.allBranches || 'All Branches', hint: 'Boma & Geita' },
+    { value: BRANCH_BOMA, label: t.bomaBranch || 'Boma Branch', hint: 'Boma loans only' },
+    { value: BRANCH_GEITA, label: t.geitaBranch || 'Geita Branch', hint: 'Geita loans only' },
+  ];
+
+  const activeStatusOption =
+    statusFilterOptions.find((opt) => opt.value === statusFilter) || statusFilterOptions[0];
+  const activeTimeOption =
+    timeFilterOptions.find((opt) => opt.value === timeFilter) || timeFilterOptions[0];
+  const activeBranchOption =
+    branchFilterOptions.find((opt) => opt.value === branchFilter) || branchFilterOptions[0];
+
+  const renderLoansFilterDropdown = ({
+    id,
+    keyName,
+    activeOption,
+    options,
+    isActive,
+    onSelect,
+    icon,
+  }) => (
+    <div
+      className={`location-filter-dropdown${isActive ? ' location-filter-active' : ''}${
+        openFilter === keyName ? ' is-open' : ''
+      }`}
+    >
+      <button
+        type="button"
+        id={id}
+        className="location-filter-btn"
+        onClick={() => setOpenFilter((prev) => (prev === keyName ? null : keyName))}
+        aria-haspopup="listbox"
+        aria-expanded={openFilter === keyName}
+      >
+        <FaFilter className="location-filter-icon" aria-hidden="true" />
+        <span className="location-filter-label">{activeOption.label}</span>
+        <FaChevronDown className="location-filter-chevron" aria-hidden="true" />
+      </button>
+      {openFilter === keyName && (
+        <ul className="location-filter-menu" role="listbox">
+          {options.map((opt) => (
+            <li key={opt.value} role="presentation">
+              <button
+                type="button"
+                role="option"
+                aria-selected={activeOption.value === opt.value}
+                className={`location-filter-option${
+                  activeOption.value === opt.value ? ' is-selected' : ''
+                }`}
+                onClick={() => {
+                  onSelect(opt.value);
+                  setOpenFilter(null);
+                }}
+              >
+                {icon}
+                <span className="location-filter-option-text">
+                  <span className="location-filter-option-label">{opt.label}</span>
+                  <span className="location-filter-option-hint">{opt.hint}</span>
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+
   return (
-    <div className="payments-container geita-portal">
+    <div className="dashboard-container">
       {isMobile && sidebarOpen ? <SidebarBackdrop onClose={closeSidebar} /> : null}
-      <GeitaSidebar sidebarOpen={sidebarOpen} isMobile={isMobile} onNavClick={closeSidebar} />
+      <aside className={`sidebar ${sidebarOpen ? 'open' : 'closed'}`}>
+        <div className="sidebar-header">
+          <img src={logo} alt="Logo" className="sidebar-logo" />
+          <span className="sidebar-title">{BRAND_NAME}</span>
+        </div>
+        <nav className="sidebar-nav" onClick={isMobile ? closeSidebar : undefined}>
+          <Link to="/admin/dashboard" className={'nav-item' + (location.pathname === '/admin/dashboard' ? ' active' : '')}>
+            <FaChartLine className="nav-icon" />
+            <span>{t.dashboard}</span>
+          </Link>
+          <Link to="/admin/categories-brands" className={'nav-item' + (location.pathname === '/admin/categories-brands' ? ' active' : '')}>
+            <FaTags className="nav-icon" />
+            <span>{t.categoriesBrands}</span>
+          </Link>
+          <Link to="/admin/spareparts" className={'nav-item' + (location.pathname === '/admin/spareparts' ? ' active' : '')}>
+            <FaBox className="nav-icon" />
+            <span>{t.spareParts}</span>
+          </Link>
+          <Link to="/admin/sales" className={'nav-item' + (location.pathname === '/admin/sales' ? ' active' : '')}>
+            <FaShoppingCart className="nav-icon" />
+            <span>{t.sales}</span>
+          </Link>
+          <Link to="/admin/employees" className={'nav-item' + (location.pathname === '/admin/employees' ? ' active' : '')}>
+            <FaUsers className="nav-icon" />
+            <span>{t.employees}</span>
+          </Link>
+          <Link to="/admin/transactions" className={'nav-item' + (location.pathname === '/admin/transactions' ? ' active' : '')}>
+            <FaCalendarAlt className="nav-icon" />
+            <span>{t.transactions}</span>
+          </Link>
+          <Link to="/admin/loans" className={'nav-item' + (location.pathname === '/admin/loans' ? ' active' : '')}>
+            <FaMoneyBillWave className="nav-icon" />
+            <span>{t.loans}</span>
+          </Link>
+          <Link to="/admin/reports" className={'nav-item' + (location.pathname === '/admin/reports' ? ' active' : '')}>
+            <FaChartBar className="nav-icon" />
+            <span>{t.reports || 'Reports'}</span>
+          </Link>
+          <Link to="/admin/settings" className={'nav-item' + (location.pathname === '/admin/settings' ? ' active' : '')}>
+            <FaCog className="nav-icon" />
+            <span>{t.settings}</span>
+          </Link>
+        </nav>
+      </aside>
+
       <div className="main-content">
-        <GeitaPageHeader
-          title={geitaLabels.pageTitles.loans}
-          user={user}
-          currentDateTime={currentDateTime}
-          onToggleSidebar={toggleSidebar}
-          onLogout={handleLogout}
-        />
+        <header className="dashboard-header">
+          <div className="header-left">
+            <button className="menu-toggle" onClick={toggleSidebar}>
+              <FaBars />
+            </button>
+            <h1 className="page-title">{t.loans || 'Loans'}</h1>
+          </div>
+          <div className="header-right">
+            <LanguageSelector />
+            <ThemeToggle />
+            <div className="user-info">
+              <FaUser className="user-icon" />
+              <span className="user-name">{capitalizeName(user?.full_name || user?.username || t.admin)}</span>
+            </div>
+            <button className="logout-btn" onClick={handleLogout}>
+              <FaSignOutAlt /> {t.logout}
+            </button>
+          </div>
+        </header>
 
         <div className="payments-content">
           <section className="manager-welcome-section">
             <h2 className="manager-loans-intro">{t.loansList || 'Loans List'}</h2>
           </section>
 
-          <div className="action-bar">
-            <div className="search-box">
-              <FaSearch className="search-icon" />
-              <input
-                type="text"
-                placeholder={t.searchPlaceholderLoans}
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="search-input"
-              />
-            </div>
-            <div className="filter-box">
-              <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="status-filter">
-                <option value="All">All Status</option>
-                <option value="Pending">Pending</option>
-                <option value="Approved">Approved</option>
-                <option value="Rejected">Rejected</option>
-              </select>
-            </div>
-            <div className="filter-box manager-time-filter-group">
-              <select value={timeFilter} onChange={(e) => setTimeFilter(e.target.value)} className="status-filter">
-                <option value="all">{t.allTime}</option>
-                <option value="today">{t.today}</option>
-                <option value="week">{t.last7Days}</option>
-                <option value="month">{t.last30Days}</option>
-                <option value="custom">{t.customRange}</option>
-              </select>
+          <div className="action-bar admin-loans-action-bar">
+            <div className="action-bar-search-group" ref={loansFiltersRef}>
+              <div className="search-box">
+                <FaSearch className="search-icon" />
+                <input
+                  type="text"
+                  placeholder={t.searchPlaceholderLoans}
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="search-input"
+                />
+              </div>
+              {renderLoansFilterDropdown({
+                id: 'loans-status-filter',
+                keyName: 'status',
+                activeOption: activeStatusOption,
+                options: statusFilterOptions,
+                isActive: statusFilter !== 'All',
+                onSelect: setStatusFilter,
+                icon: <FaCheckCircle className="location-filter-option-icon" aria-hidden="true" />,
+              })}
+              {renderLoansFilterDropdown({
+                id: 'loans-branch-filter',
+                keyName: 'branch',
+                activeOption: activeBranchOption,
+                options: branchFilterOptions,
+                isActive: branchFilter !== 'All',
+                onSelect: setBranchFilter,
+                icon: <FaMapMarkerAlt className="location-filter-option-icon" aria-hidden="true" />,
+              })}
+              {renderLoansFilterDropdown({
+                id: 'loans-time-filter',
+                keyName: 'time',
+                activeOption: activeTimeOption,
+                options: timeFilterOptions,
+                isActive: timeFilter !== 'all',
+                onSelect: setTimeFilter,
+                icon: <FaCalendarAlt className="location-filter-option-icon" aria-hidden="true" />,
+              })}
               {timeFilter === 'custom' && (
-                <div className="manager-date-range-inputs" aria-label="Date range">
-                  <label className="manager-date-range-label">
-                    <span>{t.fromDate}</span>
-                    <input
-                      type="date"
-                      value={customDateFrom}
-                      onChange={(e) => setCustomDateFrom(e.target.value)}
-                      className="manager-date-input"
-                    />
-                  </label>
-                  <label className="manager-date-range-label">
-                    <span>{t.toDate}</span>
-                    <input
-                      type="date"
-                      value={customDateTo}
-                      onChange={(e) => setCustomDateTo(e.target.value)}
-                      className="manager-date-input"
-                    />
-                  </label>
+                <div className="admin-loans-custom-dates" aria-label="Date range">
+                  <BrandDatePicker
+                    id="admin-loans-date-from"
+                    label={t.fromDate || 'From'}
+                    value={customDateFrom}
+                    max={customDateTo || undefined}
+                    onChange={setCustomDateFrom}
+                    placeholder={t.fromDate || 'From date'}
+                  />
+                  <BrandDatePicker
+                    id="admin-loans-date-to"
+                    label={t.toDate || 'To'}
+                    value={customDateTo}
+                    min={customDateFrom || undefined}
+                    onChange={setCustomDateTo}
+                    placeholder={t.toDate || 'To date'}
+                  />
+                  {(customDateFrom || customDateTo) && (
+                    <button
+                      type="button"
+                      className="admin-loans-clear-dates"
+                      onClick={() => {
+                        setCustomDateFrom('');
+                        setCustomDateTo('');
+                      }}
+                      title={t.clearDates || 'Clear dates'}
+                    >
+                      {t.clearDates || 'Clear dates'}
+                    </button>
+                  )}
                 </div>
               )}
+              <button
+                type="button"
+                className={`manager-paid-today-btn${showPaidTodayOnly ? ' active' : ''}`}
+                onClick={() => setShowPaidTodayOnly((v) => !v)}
+                title={t.loansPaidTodayHint}
+              >
+                <FaCheckCircle aria-hidden />
+                <span>{t.loansPaidToday}</span>
+              </button>
             </div>
-            <button
-              type="button"
-              className={`manager-paid-today-btn${showPaidTodayOnly ? ' active' : ''}`}
-              onClick={() => setShowPaidTodayOnly((v) => !v)}
-              title={t.loansPaidTodayHint}
-            >
-              <FaCheckCircle aria-hidden />
-              <span>{t.loansPaidToday}</span>
-            </button>
           </div>
 
           <div className="stats-row manager-stats-row">
@@ -1457,7 +1790,7 @@ function ManagerLoans() {
             <div className="manager-section-title-row">
               <h3 className="manager-section-title">{t.loansList || 'Loans List'}</h3>
               <span className="manager-filter-summary">
-                {searchTerm || statusFilter !== 'All' || timeFilter !== 'all' || showPaidTodayOnly
+                {searchTerm || statusFilter !== 'All' || branchFilter !== 'All' || timeFilter !== 'all' || showPaidTodayOnly
                   ? t.showingXOfYLoans.replace('{x}', filteredLoans.length).replace('{y}', loansWithRemain.length)
                   : t.showingXLoans.replace('{x}', filteredLoans.length)}
                 {sortedFilteredLoans.length > 0 && t.sortedByDateNewest}
@@ -1511,59 +1844,28 @@ function ManagerLoans() {
                       const receivedFromDB = Number(payment.amount_received) || 0;
                       const loanRemainAmount = getLoanAmountRemainForDisplay(payment);
                       const loanStatus = getLoanStatus(payment);
-                      const actionsDisabled = loanStatus === 'Pending' || loanStatus === 'Rejected';
-                      const disabledTitle = actionsDisabled
-                        ? (t.loanPendingActionsDisabled || 'Actions unavailable while loan status is Pending or Rejected')
-                        : undefined;
 
                       return (
                         <tr key={payment.id}>
                           <td>
                             <div className="action-buttons">
                               <button
-                                className="action-btn view"
-                                title={disabledTitle || t.viewDetails}
-                                onClick={() => handleView(payment)}
-                                disabled={actionsDisabled}
+                                type="button"
+                                className="action-btn approve"
+                                title={t.approve || 'Approve'}
+                                onClick={() => handleChangeLoanStatus(payment)}
+                                disabled={
+                                  updatingLoanStatusId === payment.id ||
+                                  loanStatus === 'Approved' ||
+                                  loanStatus === 'Rejected'
+                                }
                               >
-                                <FaEye className="action-icon" />
-                                <span className="action-text">{t.view}</span>
-                              </button>
-                              <button
-                                className="action-btn edit"
-                                title={disabledTitle || t.edit || 'Edit'}
-                                onClick={() => handleEdit(payment)}
-                                disabled={actionsDisabled}
-                              >
-                                <FaEdit className="action-icon" />
-                                <span className="action-text">{t.edit || 'Edit'}</span>
-                              </button>
-                              <button
-                                className="action-btn print"
-                                title={disabledTitle || 'Print Details'}
-                                onClick={() => handlePrintLoanDetails(payment)}
-                                disabled={actionsDisabled}
-                              >
-                                <FaPrint className="action-icon" />
-                                <span className="action-text">Print Details</span>
-                              </button>
-                              <button
-                                className="action-btn download"
-                                title={disabledTitle || 'Download Details'}
-                                onClick={() => handleDownloadLoanDetails(payment)}
-                                disabled={actionsDisabled}
-                              >
-                                <FaDownload className="action-icon" />
-                                <span className="action-text">Download</span>
-                              </button>
-                              <button
-                                className="action-btn delete"
-                                title={disabledTitle || 'Delete'}
-                                onClick={() => handleDeleteLoan(payment)}
-                                disabled={actionsDisabled || deletingPaymentId === payment.id}
-                              >
-                                <FaTrashAlt className="action-icon" />
-                                <span className="action-text">{deletingPaymentId === payment.id ? 'Deleting...' : (t.delete || 'Delete')}</span>
+                                <FaCheckCircle className="action-icon" />
+                                <span className="action-text">
+                                  {updatingLoanStatusId === payment.id
+                                    ? (t.saving || 'Saving...')
+                                    : (t.approve || 'Approve')}
+                                </span>
                               </button>
                             </div>
                           </td>
@@ -1635,6 +1937,20 @@ function ManagerLoans() {
                   )}
                 </tbody>
               </table>
+            </div>
+            <div className="stats-row manager-loans-summary-row">
+              <div className="stat-card">
+                <div className="stat-info">
+                  <h3>{t.totalLoanAmount || 'Total Loan Amount'}</h3>
+                  <p className="stat-value">TZS {formatPrice(totalLoanAmount)}</p>
+                </div>
+              </div>
+              <div className="stat-card">
+                <div className="stat-info">
+                  <h3>{t.totalAmountRemain || 'Total Amount Remain'}</h3>
+                  <p className="stat-value">TZS {formatPrice(totalAmountRemain)}</p>
+                </div>
+              </div>
             </div>
           </section>
         </div>
@@ -2225,4 +2541,4 @@ function ManagerLoans() {
   );
 }
 
-export default ManagerLoans;
+export default AdminLoans;

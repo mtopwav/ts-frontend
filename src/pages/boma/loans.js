@@ -32,7 +32,7 @@ import { bomaLabels } from './bomaLabels';
 import BomaSidebar from './components/BomaSidebar';
 import BomaPageHeader from './components/BomaPageHeader';
 import { PageLoader } from '../../components/LoadingSpinner';
-import { BRAND_NAME, DEFAULT_SUPPLIER } from '../../utils/brand';
+import { BRAND_NAME, DEFAULT_SUPPLIER, getPrintCompanyHtml, getPrintTinHtml } from '../../utils/brand';
 
 function ManagerLoans() {
   const navigate = useNavigate();
@@ -524,6 +524,8 @@ function ManagerLoans() {
             .tax-inv-company { flex: 1; }
             .tax-inv-company h2 { margin: 0 0 10px 0; font-size: 1.15rem; font-weight: 700; color: #111; letter-spacing: 0.02em; }
             .tax-inv-address { margin: 0; color: #444; font-size: 10px; line-height: 1.5; }
+            .tax-inv-contact { margin-top: 8px; font-size: 10px; color: #555; }
+            .tax-inv-contact span { margin-right: 16px; }
             .tax-inv-meta { text-align: right; min-width: 180px; }
             .tax-inv-meta p { margin: 0 0 6px 0; font-size: 11px; }
             .tax-inv-title { text-align: center; font-size: 1.6rem; font-weight: 700; margin: 24px 0; letter-spacing: 0.05em; }
@@ -547,15 +549,10 @@ function ManagerLoans() {
           <div class="tax-inv-top">
             <div class="tax-inv-left">
               <img src="${String(logoSrcForPrint).replace(/"/g, '&quot;')}" alt="Logo" class="tax-inv-logo" />
-              <div class="tax-inv-company">
-                <h2>${BRAND_NAME}</h2>
-                <p class="tax-inv-address">
-                  Dar es Salaam, Tanzania<br />
-                  Phone: +255 22 123 4567
-                </p>
-              </div>
+              ${getPrintCompanyHtml()}
             </div>
             <div class="tax-inv-meta">
+              ${getPrintTinHtml()}
               <p><strong>Report:</strong> ${String(reportLabel).replace(/</g, '&lt;')}</p>
               <p><strong>Period:</strong> ${String(dateRangeLabel).replace(/</g, '&lt;')}</p>
               <p><strong>Printed:</strong> ${new Date().toLocaleString('en-GB')}</p>
@@ -720,6 +717,8 @@ function ManagerLoans() {
               font-size: 10px;
               line-height: 1.5;
             }
+            .tax-inv-contact { margin-top: 8px; font-size: 10px; color: #555; }
+            .tax-inv-contact span { margin-right: 16px; }
             .tax-inv-meta {
               text-align: right;
               min-width: 180px;
@@ -808,16 +807,10 @@ function ManagerLoans() {
           <div class="tax-inv-top">
             <div class="tax-inv-left">
               <img src="${String(logoSrcForPrint).replace(/"/g, '&quot;')}" alt="Logo" class="tax-inv-logo" />
-              <div class="tax-inv-company">
-                <h2>${BRAND_NAME}</h2>
-                <p class="tax-inv-address">
-                  Dar es Salaam, Tanzania<br />
-                  Phone: +255 22 123 4567
-                </p>
-              </div>
+              ${getPrintCompanyHtml()}
             </div>
             <div class="tax-inv-meta">
-              <p><strong>TIN:</strong> 123-456-789</p>
+              ${getPrintTinHtml()}
               <p><strong>Loan ID:</strong> #${payment.id}</p>
               <p><strong>Date:</strong> ${formatDateInvoice(payment.created_at)}</p>
             </div>
@@ -1277,7 +1270,6 @@ function ManagerLoans() {
 
   const isLoanPaymentType = (p) => String(p?.payment_type ?? '').trim().toLowerCase() === 'loan';
   const getLoanStatus = (p) => {
-    if (getAmountRemain(p) > 0) return 'Pending';
     const loanStatus = String(p?.loan_status ?? '').trim();
     return loanStatus || 'Pending';
   };
@@ -1379,16 +1371,6 @@ function ManagerLoans() {
     addLoanPaymentId,
     // getAmountRemain is stable within render scope
   ]);
-
-  const totalAmountRemain = filteredLoans.reduce(
-    (sum, p) => sum + getLoanAmountRemainForDisplay(p),
-    0
-  );
-
-  const totalLoanAmount = filteredLoans.reduce(
-    (sum, p) => sum + getLoanNetTotal(p),
-    0
-  );
 
   if (loading) {
     return <PageLoader message={t.loading || 'Loading...'} />;
@@ -1536,13 +1518,14 @@ function ManagerLoans() {
                     <th>{t.discount || 'Discount'}</th>
                     <th>{t.paymentMethod}</th>
                     <th>{t.status}</th>
+                    <th>{t.loanStatus || 'Loan Status'}</th>
                     <th>{t.date}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {sortedFilteredLoans.length === 0 ? (
                     <tr>
-                      <td colSpan="8" className="no-data">
+                      <td colSpan="9" className="no-data">
                         {t.noNewLoans || 'No new loans found'}
                       </td>
                     </tr>
@@ -1552,32 +1535,57 @@ function ManagerLoans() {
                         payment.discount_amount != null ? Number(payment.discount_amount) : null;
                       const receivedFromDB = Number(payment.amount_received) || 0;
                       const loanRemainAmount = getLoanAmountRemainForDisplay(payment);
+                      const loanStatus = getLoanStatus(payment);
+                      const actionsDisabled = loanStatus === 'Pending' || loanStatus === 'Rejected';
+                      const disabledTitle = actionsDisabled
+                        ? (t.loanPendingActionsDisabled || 'Actions unavailable while loan status is Pending or Rejected')
+                        : undefined;
 
                       return (
                         <tr key={payment.id}>
                           <td>
                             <div className="action-buttons">
-                              <button className="action-btn view" title={t.viewDetails} onClick={() => handleView(payment)}>
+                              <button
+                                className="action-btn view"
+                                title={disabledTitle || t.viewDetails}
+                                onClick={() => handleView(payment)}
+                                disabled={actionsDisabled}
+                              >
                                 <FaEye className="action-icon" />
                                 <span className="action-text">{t.view}</span>
                               </button>
-                              <button className="action-btn edit" title={t.edit || 'Edit'} onClick={() => handleEdit(payment)}>
+                              <button
+                                className="action-btn edit"
+                                title={disabledTitle || t.edit || 'Edit'}
+                                onClick={() => handleEdit(payment)}
+                                disabled={actionsDisabled}
+                              >
                                 <FaEdit className="action-icon" />
                                 <span className="action-text">{t.edit || 'Edit'}</span>
                               </button>
-                              <button className="action-btn print" title="Print Details" onClick={() => handlePrintLoanDetails(payment)}>
+                              <button
+                                className="action-btn print"
+                                title={disabledTitle || 'Print Details'}
+                                onClick={() => handlePrintLoanDetails(payment)}
+                                disabled={actionsDisabled}
+                              >
                                 <FaPrint className="action-icon" />
                                 <span className="action-text">Print Details</span>
                               </button>
-                              <button className="action-btn download" title="Download Details" onClick={() => handleDownloadLoanDetails(payment)}>
+                              <button
+                                className="action-btn download"
+                                title={disabledTitle || 'Download Details'}
+                                onClick={() => handleDownloadLoanDetails(payment)}
+                                disabled={actionsDisabled}
+                              >
                                 <FaDownload className="action-icon" />
                                 <span className="action-text">Download</span>
                               </button>
                               <button
                                 className="action-btn delete"
-                                title="Delete"
+                                title={disabledTitle || 'Delete'}
                                 onClick={() => handleDeleteLoan(payment)}
-                                disabled={deletingPaymentId === payment.id}
+                                disabled={actionsDisabled || deletingPaymentId === payment.id}
                               >
                                 <FaTrashAlt className="action-icon" />
                                 <span className="action-text">{deletingPaymentId === payment.id ? 'Deleting...' : (t.delete || 'Delete')}</span>
@@ -1629,6 +1637,22 @@ function ManagerLoans() {
                               {payment.status}
                             </span>
                           </td>
+                          <td>
+                            <span
+                              className={`status-badge ${
+                                loanStatus === 'Approved'
+                                  ? 'approved'
+                                  : loanStatus === 'Rejected'
+                                  ? 'rejected'
+                                  : 'pending'
+                              }`}
+                            >
+                              {loanStatus === 'Approved' && <FaCheckCircle />}
+                              {loanStatus === 'Rejected' && <FaTimesCircle />}
+                              {loanStatus === 'Pending' && <FaClock />}
+                              {loanStatus}
+                            </span>
+                          </td>
                           <td>{formatDateTime(payment.created_at)}</td>
                         </tr>
                       );
@@ -1636,20 +1660,6 @@ function ManagerLoans() {
                   )}
                 </tbody>
               </table>
-            </div>
-            <div className="stats-row manager-loans-summary-row">
-              <div className="stat-card">
-                <div className="stat-info">
-                  <h3>{t.totalLoanAmount || 'Total Loan Amount'}</h3>
-                  <p className="stat-value">TZS {formatPrice(totalLoanAmount)}</p>
-                </div>
-              </div>
-              <div className="stat-card">
-                <div className="stat-info">
-                  <h3>{t.totalAmountRemain || 'Total Amount Remain'}</h3>
-                  <p className="stat-value">TZS {formatPrice(totalAmountRemain)}</p>
-                </div>
-              </div>
             </div>
           </section>
         </div>

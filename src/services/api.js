@@ -430,6 +430,16 @@ export const updatePaymentDetails = (id, payload = {}) => {
 };
 
 /**
+ * Update loan_status only (Pending / Approved / Rejected) without changing payment status or stock.
+ */
+export const updateLoanStatus = (id, loanStatus) => {
+  return apiRequest(`/payments/${id}/loan-status`, {
+    method: "PUT",
+    body: { loan_status: loanStatus }
+  });
+};
+
+/**
  * Create (or upsert) a loan row using an existing payment_id.
  * This writes into the `loans` table without approving/rejecting the payment.
  */

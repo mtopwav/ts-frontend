@@ -1,5 +1,5 @@
 import { formatDateTime } from "./dateTime";
-import { BRAND_NAME } from "./brand";
+import { getPrintCompanyHtml, getPrintTinHtml } from "./brand";
 
 export const RECEIPT_PRINT_STYLES = `
   * { box-sizing: border-box; }
@@ -9,6 +9,8 @@ export const RECEIPT_PRINT_STYLES = `
   .tax-inv-logo { max-height: 60px; max-width: 140px; object-fit: contain; }
   .tax-inv-company h2 { margin: 0 0 10px 0; font-size: 1.15rem; font-weight: 700; color: #111; }
   .tax-inv-address { margin: 0; color: #444; font-size: 10px; }
+  .tax-inv-contact { margin-top: 8px; font-size: 10px; color: #555; }
+  .tax-inv-contact span { margin-right: 16px; }
   .tax-inv-meta { text-align: right; min-width: 180px; }
   .tax-inv-meta p { margin: 0 0 6px 0; font-size: 11px; }
   .tax-inv-title { text-align: center; font-size: 1.6rem; font-weight: 700; margin: 24px 0; }
@@ -29,7 +31,7 @@ function escapeHtml(str) {
   return String(str ?? "—").replace(/</g, "&lt;");
 }
 
-export function buildReceiptBodyHtml(payment, logoSrc = "") {
+export function buildReceiptBodyHtml(payment, logoSrc = "", address) {
   if (!payment) return "";
 
   const isReceipt = payment.status === "Approved";
@@ -81,12 +83,10 @@ export function buildReceiptBodyHtml(payment, logoSrc = "") {
   <div class="tax-inv-top">
     <div class="tax-inv-left">
       ${logoImg}
-      <div class="tax-inv-company">
-        <h2>${BRAND_NAME}</h2>
-        <p class="tax-inv-address">Dar es Salaam, Tanzania</p>
-      </div>
+      ${getPrintCompanyHtml("tax-inv-company", address)}
     </div>
     <div class="tax-inv-meta">
+      ${getPrintTinHtml()}
       <p><strong>${isReceipt ? "Receipt" : "Invoice"} No:</strong> ${invNum}</p>
       <p><strong>Date:</strong> ${formatDateTime(payment.created_at)}</p>
     </div>
