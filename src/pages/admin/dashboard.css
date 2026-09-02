@@ -257,6 +257,13 @@
   font-weight: 500;
 }
 
+.stat-changes {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
 .stat-change.positive {
   color: var(--success);
 }

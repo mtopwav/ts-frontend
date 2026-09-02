@@ -30,7 +30,7 @@ import logo from '../../images/logo1.png';
 import { changeAdminPassword } from '../../services/api';
 import { getCurrentDateTime } from '../../utils/dateTime';
 import { useTranslation } from '../../utils/useTranslation';
-import { applyTheme } from '../../utils/theme';
+import { applyTheme, getTheme } from '../../utils/theme';
 import ThemeToggle from '../../components/ThemeToggle';
 import LanguageSelector from '../../components/LanguageSelector';
 import { getUnviewedOperationsCount } from '../../utils/notifications';
@@ -62,7 +62,7 @@ function Settings() {
     timezone: localStorage.getItem('systemTimezone') || 'Africa/Dar_es_Salaam',
     dateFormat: localStorage.getItem('systemDateFormat') || 'DD/MM/YYYY',
     timeFormat: localStorage.getItem('systemTimeFormat') || '24h',
-    theme: localStorage.getItem('systemTheme') || 'light'
+    theme: getTheme(section)
   });
 
   const [notificationSettings, setNotificationSettings] = useState({
@@ -112,9 +112,10 @@ function Settings() {
     updateNotificationCount();
     window.addEventListener('unviewedOperationsChanged', updateNotificationCount);
 
-    // Apply saved theme preference on mount
-    const savedTheme = localStorage.getItem('systemTheme') || 'light';
-    applyTheme(savedTheme);
+    // Apply saved theme preference for this portal only
+    const savedTheme = getTheme(section);
+    setSystemSettings((prev) => ({ ...prev, theme: savedTheme }));
+    applyTheme(savedTheme, section);
 
     return () => {
       clearInterval(dateTimeInterval);
@@ -233,13 +234,12 @@ function Settings() {
     localStorage.setItem('systemTimezone', systemSettings.timezone);
     localStorage.setItem('systemDateFormat', systemSettings.dateFormat);
     localStorage.setItem('systemTimeFormat', systemSettings.timeFormat);
-    localStorage.setItem('systemTheme', systemSettings.theme);
     
     // Dispatch custom event for date format changes to trigger re-renders
     window.dispatchEvent(new Event('dateFormatChanged'));
     
-    // Apply theme immediately
-    applyTheme(systemSettings.theme);
+    // Apply theme for this portal only
+    applyTheme(systemSettings.theme, section);
     
     // Force immediate update of current date/time display
     setCurrentDateTime(getCurrentDateTime());
@@ -604,22 +604,17 @@ function Settings() {
                     <select
                       value={systemSettings.theme}
                       onChange={(e) => {
-                        const newTheme = e.target.value;
+                        const newTheme = e.target.value === 'dark' ? 'dark' : 'light';
                         setSystemSettings({...systemSettings, theme: newTheme});
-                        // Apply theme immediately
-                        applyTheme(newTheme);
+                        // Apply theme for this portal only (default light)
+                        applyTheme(newTheme, section);
                       }}
                     >
                       <option value="light">{t.light}</option>
                       <option value="dark">{t.dark}</option>
-                      <option value="auto">{t.auto}</option>
                     </select>
                     <div style={{ marginTop: '8px', fontSize: '0.9rem', color: '#666', fontStyle: 'italic' }}>
-                      {systemSettings.theme === 'auto' 
-                        ? `Auto: ${window.matchMedia('(prefers-color-scheme: dark)').matches ? t.dark : t.light}`
-                        : systemSettings.theme === 'dark' 
-                        ? t.dark 
-                        : t.light}
+                      {systemSettings.theme === 'dark' ? t.dark : t.light}
                     </div>
                   </div>
                   <div className="form-actions">

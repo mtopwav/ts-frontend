@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { FaMoon, FaSun } from 'react-icons/fa';
-import { toggleTheme, getTheme } from '../utils/theme';
+import { toggleTheme, getTheme, applyTheme } from '../utils/theme';
 import { getSectionFromPath } from '../utils/settingsSection';
 
 const ThemeToggle = () => {
@@ -11,12 +11,17 @@ const ThemeToggle = () => {
   const [currentTheme, setCurrentTheme] = useState(() => getTheme(section));
 
   useEffect(() => {
+    // Keep document theme in sync when switching portals
+    applyTheme(getTheme(section), section);
     setCurrentTheme(getTheme(section));
   }, [section, location.pathname]);
 
   useEffect(() => {
-    const handleThemeChange = () => {
-      setCurrentTheme(getTheme(section));
+    const handleThemeChange = (event) => {
+      const eventSection = event?.detail?.section;
+      if (!eventSection || eventSection === section) {
+        setCurrentTheme(getTheme(section));
+      }
     };
     window.addEventListener('themeChanged', handleThemeChange);
     return () => window.removeEventListener('themeChanged', handleThemeChange);
@@ -27,13 +32,8 @@ const ThemeToggle = () => {
     setCurrentTheme(newTheme);
   };
 
-  // Determine if currently in dark mode (considering 'auto' theme)
-  const isDarkMode = () => {
-    if (currentTheme === 'dark') return true;
-    if (currentTheme === 'light') return false;
-    // For 'auto', check system preference
-    return window.matchMedia('(prefers-color-scheme: dark)').matches;
-  };
+  // Determine if currently in dark mode
+  const isDarkMode = () => currentTheme === 'dark';
 
   return (
     <button 

@@ -1,35 +1,81 @@
-/* Hide Google Translate chrome — we drive language from LanguageSelector */
+/* Silent Google Translate — translate page, never show Google UI / spinner */
 
-#google_translate_element,
+#google_translate_element {
+  position: absolute !important;
+  left: -9999px !important;
+  top: 0 !important;
+  width: 1px !important;
+  height: 1px !important;
+  overflow: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  z-index: -1 !important;
+}
+
 .goog-te-banner-frame,
+.goog-te-banner-frame.skiptranslate,
+iframe.goog-te-banner-frame,
 .goog-te-balloon-frame,
+iframe.goog-te-balloon-frame,
 #goog-gt-tt,
+.goog-te-spinner-pos,
+.goog-te-spinner-animation,
+.goog-te-spinner,
 .goog-tooltip,
-.goog-tooltip:hover,
-.goog-text-highlight {
+.goog-te-menu-value,
+.goog-text-highlight,
+.VIpgJd-ZVi9od-ORHb,
+.VIpgJd-ZVi9od-ORHb-OEVmcd,
+.VIpgJd-ZVi9od-l4eHX-hSRGPd,
+.VIpgJd-yAWNEb-L7lbkb {
   display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  height: 0 !important;
+  width: 0 !important;
+  max-height: 0 !important;
+  border: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  pointer-events: none !important;
+  position: absolute !important;
+  left: -9999px !important;
+  top: -9999px !important;
+  z-index: -1 !important;
+}
+
+body > .skiptranslate:not(#google_translate_element) {
+  display: none !important;
+  visibility: hidden !important;
+  height: 0 !important;
+  max-height: 0 !important;
+  overflow: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+html {
+  margin-top: 0 !important;
 }
 
 body {
   top: 0 !important;
+  position: static !important;
+  margin-top: 0 !important;
 }
 
-.goog-te-gadget {
-  font-size: 0 !important;
-}
-
-iframe.goog-te-banner-frame {
+.goog-te-gadget,
+.goog-te-gadget-simple,
+.goog-te-menu-frame {
   display: none !important;
   visibility: hidden !important;
   height: 0 !important;
+  overflow: hidden !important;
 }
 
-/* Skip translating our language picker itself */
-.language-selector,
-.language-selector * {
-  /* google skips notranslate */
-}
-
-.notranslate {
-  /* marker class for elements that must stay as-is */
+.goog-te-combo {
+  position: absolute !important;
+  left: -9999px !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
 }

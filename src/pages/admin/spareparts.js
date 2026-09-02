@@ -826,8 +826,13 @@ function SpareParts() {
 
   const chartLabel = t.stockQuantity ?? 'Stock Quantity';
   const chartTitle = t.stockQuantityByPart ?? 'Stock Quantity by Part';
-  const totalChartUnits = quantities.reduce((sum, q) => sum + q, 0);
-  const lowStockInChart = quantities.filter((q) => q < 10).length;
+  const totalChartUnits = filteredParts.reduce(
+    (sum, part) => sum + (Number(part.quantity) || 0),
+    0
+  );
+  const lowStockInChart = filteredParts.filter(
+    (part) => (Number(part.quantity) || 0) < 10
+  ).length;
 
   const chartData = {
     labels: partsForChart.map((part) => {
@@ -1202,6 +1207,7 @@ function SpareParts() {
                   <th>Quantity Added</th>
                   <th>{t.quantity}</th>
                   <th>Soldout Quantity</th>
+                  <th>{t.buyingPrice || 'Buying Price'}</th>
                   <th>{t.wholesalePrice || 'Wholesale Price'}</th>
                   <th>{t.retailPrice || 'Retail Price'}</th>
                   <th>{t.status}</th>
@@ -1211,7 +1217,7 @@ function SpareParts() {
               <tbody>
                 {sortedFilteredParts.length === 0 ? (
                   <tr>
-                    <td colSpan="13" className="no-data">
+                    <td colSpan="14" className="no-data">
                       {t.noData}
                     </td>
                   </tr>
@@ -1286,6 +1292,7 @@ function SpareParts() {
                         </span>
                       </td>
                       <td>{part.soldoutQuantity}</td>
+                      <td>{formatCurrency(part.buying_price)}</td>
                       <td>{formatCurrency(part.wholesale_price)}</td>
                       <td>{formatCurrency(part.retail_price)}</td>
                       <td>

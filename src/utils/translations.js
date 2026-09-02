@@ -1,4 +1,16 @@
+import { getSectionFromPath } from './settingsSection';
+
 const STORAGE_KEY = 'appLanguage';
+
+function languageKey(section = '') {
+  return section ? `${STORAGE_KEY}_${section}` : STORAGE_KEY;
+}
+
+function resolveSection(section) {
+  if (section) return section;
+  if (typeof window === 'undefined') return '';
+  return getSectionFromPath(window.location?.pathname || '');
+}
 
 const TRANSLATIONS = {
   en: {
@@ -735,29 +747,40 @@ function humanizeKey(key) {
     .trim();
 }
 
-export function getCurrentLanguage() {
+export function getCurrentLanguage(section = '') {
+  const resolved = resolveSection(section);
   try {
+    if (resolved) {
+      const scoped = localStorage.getItem(languageKey(resolved));
+      if (scoped === 'sw' || scoped === 'en') return scoped;
+      return 'en';
+    }
     const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored === "sw" || stored === "en") return stored;
+    if (stored === 'sw' || stored === 'en') return stored;
   } catch {
     /* ignore */
   }
-  return "en";
+  return 'en';
 }
 
-export function setCurrentLanguage(lang) {
-  const next = lang === "sw" ? "sw" : "en";
+export function setCurrentLanguage(lang, section = '') {
+  const next = lang === 'sw' ? 'sw' : 'en';
+  const resolved = resolveSection(section);
   try {
-    localStorage.setItem(STORAGE_KEY, next);
+    if (resolved) {
+      localStorage.setItem(languageKey(resolved), next);
+    } else {
+      localStorage.setItem(STORAGE_KEY, next);
+    }
   } catch {
     /* ignore */
   }
-  if (typeof document !== "undefined") {
+  if (typeof document !== 'undefined') {
     document.documentElement.lang = next;
   }
-  if (typeof window !== "undefined") {
+  if (typeof window !== 'undefined') {
     window.dispatchEvent(
-      new CustomEvent("languageChanged", { detail: { lang: next } })
+      new CustomEvent('languageChanged', { detail: { lang: next, section: resolved } })
     );
   }
   return next;

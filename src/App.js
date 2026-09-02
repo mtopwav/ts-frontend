@@ -37,13 +37,14 @@ import BomaMessages from './pages/boma/messages';
 import BomaSales from './pages/boma/sales';
 
 import { getCurrentLanguage } from './utils/translations';
+import { getSectionFromWindow } from './utils/settingsSection';
 import PageTranslateBoot from './components/PageTranslateBoot';
 import IdleLogout from './components/IdleLogout';
 import './App.css';
 
 function App() {
   useEffect(() => {
-    document.documentElement.lang = getCurrentLanguage();
+    document.documentElement.lang = getCurrentLanguage(getSectionFromWindow());
   }, []);
 
   return (

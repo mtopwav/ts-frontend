@@ -372,19 +372,27 @@ function Dashboard() {
     fetchRecentOperations();
   }, []);
 
-  /** Stock on hand: Σ (qty × retail_price) per spare part. */
+  /** Stock on hand buying value + profit from sold-out units (selling − buying). */
   const inventoryStockTotals = useMemo(() => {
     const parsePrice = (v) => {
       if (v == null || v === '') return 0;
       const n = parseFloat(String(v).replace(/,/g, ''));
       return Number.isNaN(n) ? 0 : n;
     };
-    let retail = 0;
+    let buying = 0;
+    let profit = 0;
     for (const part of sparePartsList) {
       const qty = Number(part.quantity) || 0;
-      retail += qty * parsePrice(part.retail_price ?? part.retailPrice);
+      const soldOut = Number(part.soldout_quantity ?? part.soldoutQuantity) || 0;
+      const buy = parsePrice(part.buying_price ?? part.buyingPrice);
+      const sell = parsePrice(
+        part.retail_price ?? part.retailPrice ?? part.selling_price ?? part.sellingPrice
+      );
+      buying += qty * buy;
+      // Profit on every sold-out unit: selling price − buying price
+      profit += soldOut * (sell - buy);
     }
-    return { retail };
+    return { buying, profit };
   }, [sparePartsList]);
 
   /** Approved payments only: amount_received for retail/other (non-wholesale). */
@@ -479,6 +487,7 @@ function Dashboard() {
   const customersChange = calculatePercentageChange(totalCustomers, lastWeekCustomers);
 
   const receivedLineRetail = `${t.totalReceived || 'Total received'}: ${formatCurrency(amountReceivedByPriceType.retailRecv)}`;
+  const profitLine = `${t.profit || 'Profit'}: ${formatCurrency(inventoryStockTotals.profit)}`;
 
   // Dashboard statistics
   const stats = [
@@ -516,9 +525,13 @@ function Dashboard() {
     },
     {
       title: t.totalValue || 'Total Value',
-      value: formatCurrency(inventoryStockTotals.retail),
+      value: formatCurrency(inventoryStockTotals.buying),
       change: receivedLineRetail,
       changePositive: true,
+      changes: [
+        { text: receivedLineRetail, positive: true },
+        { text: profitLine, positive: inventoryStockTotals.profit >= 0 },
+      ],
       icon: <FaMoneyBillAlt />,
       color: 'secondary'
     },
@@ -696,9 +709,22 @@ function Dashboard() {
                 <div className="stat-info">
                   <h3 className="stat-title">{stat.title}</h3>
                   <p className="stat-value">{stat.value}</p>
-                  <span className={`stat-change ${stat.changePositive ? 'positive' : 'negative'}`}>
-                    {stat.change}
-                  </span>
+                  {Array.isArray(stat.changes) && stat.changes.length > 0 ? (
+                    <div className="stat-changes">
+                      {stat.changes.map((line, lineIdx) => (
+                        <span
+                          key={lineIdx}
+                          className={`stat-change ${line.positive ? 'positive' : 'negative'}`}
+                        >
+                          {line.text}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <span className={`stat-change ${stat.changePositive ? 'positive' : 'negative'}`}>
+                      {stat.change}
+                    </span>
+                  )}
                 </div>
               </div>
             ))}

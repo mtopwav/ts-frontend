@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { FaGlobe } from 'react-icons/fa';
 import { getCurrentLanguage, setCurrentLanguage } from '../utils/translations';
 import { applyPageLanguage } from '../utils/pageTranslate';
+import { getSectionFromPath } from '../utils/settingsSection';
 import './LanguageSelector.css';
 
 const LANGUAGES = {
@@ -10,29 +12,38 @@ const LANGUAGES = {
 };
 
 /**
- * English / Swahili — Swahili uses full-page Google Translate
- * so every label on screen is translated (not only t.* keys).
+ * English / Swahili — preference is saved per portal (admin / boma / geita).
  */
 const LanguageSelector = () => {
-  const [currentLang, setCurrentLang] = useState(() => getCurrentLanguage());
+  const location = useLocation();
+  const section = getSectionFromPath(location.pathname);
+  const [currentLang, setCurrentLang] = useState(() => getCurrentLanguage(section));
   const [isOpen, setIsOpen] = useState(false);
 
   useEffect(() => {
-    const refresh = () => setCurrentLang(getCurrentLanguage());
+    setCurrentLang(getCurrentLanguage(section));
+  }, [section, location.pathname]);
+
+  useEffect(() => {
+    const refresh = (event) => {
+      const eventSection = event?.detail?.section;
+      if (!eventSection || eventSection === section) {
+        setCurrentLang(getCurrentLanguage(section));
+      }
+    };
     window.addEventListener('languageChanged', refresh);
     return () => window.removeEventListener('languageChanged', refresh);
-  }, []);
+  }, [section]);
 
   const handleLanguageChange = (lang) => {
     if (lang === currentLang) {
       setIsOpen(false);
       return;
     }
-    const next = setCurrentLanguage(lang);
+    const next = setCurrentLanguage(lang, section);
     setCurrentLang(next);
     setIsOpen(false);
-    // Translates the entire page (sidebars, tables, modals, placeholders…)
-    applyPageLanguage(next, { reload: true });
+    applyPageLanguage(next, { reload: true, section });
   };
 
   return (

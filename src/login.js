@@ -7,7 +7,6 @@ import logo from './images/logo.png';
 import { ButtonLoader } from './components/LoadingSpinner';
 import { BRAND_LOGO_ALT, SYSTEM_NAME } from './utils/brand';
 import { useTranslation } from './utils/useTranslation';
-import LanguageSelector from './components/LanguageSelector';
 
 const EMPLOYEE_LOCATIONS = ['Boma', 'Geita'];
 
@@ -174,9 +173,6 @@ function Login() {
           <div className="login-card">
             <div className="login-logo-container">
               <img src={logo} alt={BRAND_LOGO_ALT} className="login-logo" />
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
-              <LanguageSelector />
             </div>
             <h2 className="login-title">{t.login}</h2>
             <p className="login-subtitle">

@@ -299,10 +299,14 @@ function ManagerReports() {
 
   // Loans report: payments with amount remain > 0
   const getAmountRemain = (p) => (Number(p.total_amount) || 0) - (Number(p.amount_received) || 0);
+  const getLoanStatus = (p) => {
+    const loanStatus = String(p?.loan_status ?? '').trim();
+    return loanStatus || 'Pending';
+  };
   const loansOnly = paymentsInRange.filter((p) => getAmountRemain(p) > 0);
-  const loansPending = loansOnly.filter((p) => p.status === 'Pending').length;
-  const loansApproved = loansOnly.filter((p) => p.status === 'Approved').length;
-  const loansRejected = loansOnly.filter((p) => p.status === 'Rejected').length;
+  const loansPending = loansOnly.filter((p) => getLoanStatus(p) === 'Pending').length;
+  const loansApproved = loansOnly.filter((p) => getLoanStatus(p) === 'Approved').length;
+  const loansRejected = loansOnly.filter((p) => getLoanStatus(p) === 'Rejected').length;
   const totalOutstanding = loansOnly.reduce((sum, p) => sum + Math.max(0, getAmountRemain(p)), 0);
 
   const isLoanPaymentType = (p) =>
@@ -923,7 +927,7 @@ function ManagerReports() {
                   (Number(p.total_amount) || 0) - (Number(p.discount_amount) || 0)
                 )}</td><td class="tr">${formatPrice(getAmountRemainLoan(p))}</td><td class="tr">${formatPrice(
                   Number(p.amount_received) || 0
-                )}</td><td>${(p.payment_method || '—').replace(/</g, '&lt;')}</td><td>${(p.status || '—').replace(
+                )}</td><td>${(p.payment_method || '—').replace(/</g, '&lt;')}</td><td>${(getLoanStatus(p) || '—').replace(
                   /</g,
                   '&lt;'
                 )}</td></tr>`
@@ -987,7 +991,7 @@ function ManagerReports() {
         <th>Remain (TZS)</th>
         <th>Received (TZS)</th>
         <th>Payment</th>
-        <th>Status</th>
+        <th>Loan Status</th>
       </tr>
     </thead>
     <tbody>

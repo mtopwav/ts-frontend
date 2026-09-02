@@ -275,7 +275,6 @@ function ManagerSpareparts() {
             .map((p, idx) => {
               const qty = Number(p.quantity) || 0;
               const isLow = qty < LOW_STOCK_THRESHOLD;
-              const qtyAdded = Number(p.quantity_added) || 0;
               const soldout = Number(p.soldout_quantity) || 0;
               return `
                 <tr>
@@ -284,7 +283,6 @@ function ManagerSpareparts() {
                   <td class="tl">${safe(String(p.part_number || '—').toUpperCase())}</td>
                   <td class="tl">${safe(capitalizeName(p.category_name || '—'))}</td>
                   <td class="tl">${safe(String(p.brand_name || '—').toUpperCase())}</td>
-                  <td class="tr">${qtyAdded}</td>
                   <td class="tr ${isLow ? 'qty-low' : ''}">${qty}</td>
                   <td class="tr">${soldout}</td>
                   <td class="tr">${safe(formatPrice(p.wholesale_price))}</td>
@@ -392,7 +390,6 @@ function ManagerSpareparts() {
                 <th class="tl">Part number</th>
                 <th class="tl">Category</th>
                 <th class="tl">Brand</th>
-                <th class="tr">Quantity added</th>
                 <th class="tr">Quantity</th>
                 <th class="tr">Soldout quantity</th>
                 <th class="tr">Wholesale price (TZS)</th>
@@ -711,7 +708,6 @@ function ManagerSpareparts() {
                     <th>Part Number</th>
                     <th>Category</th>
                     <th>Brand</th>
-                    <th>Quantity Added</th>
                     <th>Quantity</th>
                     <th>Soldout Quantity</th>
                     <th>{t.wholesalePrice || 'Wholesale Price'} (TZS)</th>
@@ -721,11 +717,11 @@ function ManagerSpareparts() {
                 <tbody>
                   {dataLoading ? (
                     <tr>
-                      <td colSpan="11" className="no-data loading-cell"><InlineLoader message={t.loadingSpareParts} size="md" /></td>
+                      <td colSpan="10" className="no-data loading-cell"><InlineLoader message={t.loadingSpareParts} size="md" /></td>
                     </tr>
                   ) : sortedParts.length === 0 ? (
                     <tr>
-                      <td colSpan="11" className="no-data">
+                      <td colSpan="10" className="no-data">
                         No spare parts found
                       </td>
                     </tr>
@@ -758,7 +754,6 @@ function ManagerSpareparts() {
                           <td>{(p.part_number || '—').toUpperCase()}</td>
                           <td>{capitalizeName(p.category_name) || '—'}</td>
                           <td>{(p.brand_name || '—').toUpperCase()}</td>
-                          <td className="manager-quantity-added-value">{Number(p.quantity_added) || 0}</td>
                           <td>
                             <span className={qtyClass}>{qty}</span>
                           </td>
