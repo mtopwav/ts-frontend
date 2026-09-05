@@ -372,39 +372,44 @@ function Dashboard() {
     fetchRecentOperations();
   }, []);
 
-  /** Stock on hand buying value + profit from sold-out units (selling − buying). */
-  const inventoryStockTotals = useMemo(() => {
+  /** Inventory stock value at buying price (on-hand qty only). */
+  const inventoryBuyingValue = useMemo(() => {
     const parsePrice = (v) => {
       if (v == null || v === '') return 0;
       const n = parseFloat(String(v).replace(/,/g, ''));
       return Number.isNaN(n) ? 0 : n;
     };
     let buying = 0;
-    let profit = 0;
     for (const part of sparePartsList) {
       const qty = Number(part.quantity) || 0;
-      const soldOut = Number(part.soldout_quantity ?? part.soldoutQuantity) || 0;
-      const buy = parsePrice(part.buying_price ?? part.buyingPrice);
-      const sell = parsePrice(
-        part.retail_price ?? part.retailPrice ?? part.selling_price ?? part.sellingPrice
-      );
-      buying += qty * buy;
-      // Profit on every sold-out unit: selling price − buying price
-      profit += soldOut * (sell - buy);
+      buying += qty * parsePrice(part.buying_price ?? part.buyingPrice);
     }
-    return { buying, profit };
+    return buying;
   }, [sparePartsList]);
 
-  /** Approved payments only: amount_received for retail/other (non-wholesale). */
-  const amountReceivedByPriceType = useMemo(() => {
-    let retailRecv = 0;
+  /**
+   * Amount received + profit from the payments table columns.
+   * Received: Σ amount_received (Approved only).
+   * Profit: Σ profit column (Approved only — set on approve).
+   */
+  const transactionMetrics = useMemo(() => {
+    const parseNum = (v) => {
+      if (v == null || v === '') return 0;
+      const n = typeof v === 'number' ? v : parseFloat(String(v).replace(/,/g, ''));
+      return Number.isFinite(n) ? n : 0;
+    };
+
+    let received = 0;
+    let profit = 0;
+
     for (const p of payments) {
       if (String(p.status || '').trim() !== 'Approved') continue;
-      const recv = Number(p.amount_received) || 0;
-      const pt = String(p.price_type || '').trim().toLowerCase();
-      if (pt !== 'wholesale') retailRecv += recv;
+      received += parseNum(p.amount_received);
+      // Use payments.profit column only (not line-item / spare-part math)
+      profit += parseNum(p.profit);
     }
-    return { retailRecv };
+
+    return { received, profit };
   }, [payments]);
 
   /** Total sold-out quantity across all spare parts. */
@@ -486,8 +491,8 @@ function Dashboard() {
   const ordersChange = calculatePercentageChange(totalOrders, lastWeekOrders);
   const customersChange = calculatePercentageChange(totalCustomers, lastWeekCustomers);
 
-  const receivedLineRetail = `${t.totalReceived || 'Total received'}: ${formatCurrency(amountReceivedByPriceType.retailRecv)}`;
-  const profitLine = `${t.profit || 'Profit'}: ${formatCurrency(inventoryStockTotals.profit)}`;
+  const receivedLineRetail = `${t.totalReceived || 'Total received'}: ${formatCurrency(transactionMetrics.received)}`;
+  const profitLine = `${t.profit || 'Profit'}: ${formatCurrency(transactionMetrics.profit)}`;
 
   // Dashboard statistics
   const stats = [
@@ -525,12 +530,12 @@ function Dashboard() {
     },
     {
       title: t.totalValue || 'Total Value',
-      value: formatCurrency(inventoryStockTotals.buying),
+      value: formatCurrency(inventoryBuyingValue),
       change: receivedLineRetail,
       changePositive: true,
       changes: [
         { text: receivedLineRetail, positive: true },
-        { text: profitLine, positive: inventoryStockTotals.profit >= 0 },
+        { text: profitLine, positive: transactionMetrics.profit >= 0 },
       ],
       icon: <FaMoneyBillAlt />,
       color: 'secondary'

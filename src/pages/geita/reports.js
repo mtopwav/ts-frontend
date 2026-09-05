@@ -24,7 +24,7 @@ import { capitalizeName } from './geitaUtils';
 import GeitaSidebar from './components/GeitaSidebar';
 import GeitaPageHeader from './components/GeitaPageHeader';
 import { PageLoader, InlineLoader } from '../../components/LoadingSpinner';
-import { BRAND_NAME, DEFAULT_SUPPLIER, getPrintCompanyHtml, BRAND_ADDRESS_GEITA } from '../../utils/brand';
+import { BRAND_NAME, DEFAULT_SUPPLIER, getPrintCompanyHtml, getPrintTinHtml, BRAND_ADDRESS_GEITA } from '../../utils/brand';
 
 function getTodayDateString(date = new Date()) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
@@ -289,29 +289,85 @@ function ManagerReports() {
   const approvedCount = paymentsInRange.filter((p) => p.status === 'Approved').length;
   const rejectedCount = paymentsInRange.filter((p) => p.status === 'Rejected').length;
 
-  // Loans report: payments with amount remain > 0
-  const getAmountRemain = (p) => (Number(p.total_amount) || 0) - (Number(p.amount_received) || 0);
+  // Loans report — same calculation helpers as boma/loans.js
+  const getLoanItemsForCalc = (p) => {
+    if (p?.items && p.items.length > 0) return p.items;
+    if (p?.sparepart_name || p?.sparepart_id || p?.quantity || p?.unit_price) {
+      return [
+        {
+          quantity: p.quantity || 0,
+          unit_price: p.unit_price || 0,
+          total_amount: (Number(p.quantity) || 0) * (Number(p.unit_price) || 0),
+        },
+      ];
+    }
+    return [];
+  };
+
+  /** Gross total before discount (from line items, or inferred from stored totals). */
+  const getLoanSubTotal = (p) => {
+    const items = getLoanItemsForCalc(p);
+    const fromItems = items.reduce((sum, item) => {
+      const line =
+        item.total_amount != null && item.total_amount !== undefined
+          ? Number(item.total_amount) || 0
+          : (Number(item.quantity) || 0) * (Number(item.unit_price) || 0);
+      return sum + line;
+    }, 0);
+    if (fromItems > 0) return fromItems;
+    const total = Number(p?.total_amount) || 0;
+    const discount = Number(p?.discount_amount) || 0;
+    if (discount <= 0) return total;
+    const received = Number(p?.amount_received) || 0;
+    const dbRemain = p?.amount_remain != null ? Number(p.amount_remain) : null;
+    if (dbRemain != null && !Number.isNaN(dbRemain) && Math.abs(total - (received + dbRemain)) < 1) {
+      return total + discount;
+    }
+    return total;
+  };
+
+  /** Payable total after discount (applied once). */
+  const getLoanNetTotal = (p) => {
+    const discount = Number(p?.discount_amount) || 0;
+    const items = getLoanItemsForCalc(p);
+    const fromItems = items.reduce((sum, item) => {
+      const line =
+        item.total_amount != null && item.total_amount !== undefined
+          ? Number(item.total_amount) || 0
+          : (Number(item.quantity) || 0) * (Number(item.unit_price) || 0);
+      return sum + line;
+    }, 0);
+    if (fromItems > 0) return Math.max(0, fromItems - discount);
+    return Math.max(0, Number(p?.total_amount) || 0);
+  };
+
+  const getLoanAmountRemainForDisplay = (p) => {
+    const dbRemain = p?.amount_remain != null ? Number(p.amount_remain) : null;
+    if (dbRemain != null && !Number.isNaN(dbRemain)) return Math.max(0, dbRemain);
+    const received = Number(p?.amount_received) || 0;
+    return Math.max(0, getLoanNetTotal(p) - received);
+  };
+
   const getLoanStatus = (p) => {
     const loanStatus = String(p?.loan_status ?? '').trim();
     return loanStatus || 'Pending';
   };
-  const loansOnly = paymentsInRange.filter((p) => getAmountRemain(p) > 0);
-  const loansPending = loansOnly.filter((p) => getLoanStatus(p) === 'Pending').length;
-  const loansApproved = loansOnly.filter((p) => getLoanStatus(p) === 'Approved').length;
-  const loansRejected = loansOnly.filter((p) => getLoanStatus(p) === 'Rejected').length;
-  const totalOutstanding = loansOnly.reduce((sum, p) => sum + Math.max(0, getAmountRemain(p)), 0);
 
   const isLoanPaymentType = (p) =>
     String(p?.payment_type ?? '').trim().toLowerCase() === 'loan';
 
-  const getAmountRemainLoan = (p) => {
-    const dbRemain = p.amount_remain != null ? Number(p.amount_remain) : null;
-    if (dbRemain != null && !Number.isNaN(dbRemain)) return dbRemain;
-    const total = Number(p.total_amount) || 0;
-    const discount = Number(p.discount_amount) || 0;
-    const received = Number(p.amount_received) || 0;
-    return Math.max(0, total - discount - received);
-  };
+  // Same base list as boma/loans.js: payment_type = loan (in report period)
+  const loanPaymentsInRange = paymentsInRange.filter((p) => isLoanPaymentType(p));
+  const loansOnly = loanPaymentsInRange.filter((p) => getLoanAmountRemainForDisplay(p) > 0);
+  const loansPending = loanPaymentsInRange.filter((p) => getLoanStatus(p) === 'Pending').length;
+  const loansApproved = loanPaymentsInRange.filter((p) => getLoanStatus(p) === 'Approved').length;
+  const loansRejected = loanPaymentsInRange.filter((p) => getLoanStatus(p) === 'Rejected').length;
+  const totalOutstanding = loanPaymentsInRange.reduce(
+    (sum, p) => sum + getLoanAmountRemainForDisplay(p),
+    0
+  );
+
+  const getAmountRemainLoan = (p) => getLoanAmountRemainForDisplay(p);
 
   /** Totals for printed report footer — same logic as finance/cashier/reports.js (`approvedForPrint` rows). */
   const buildPrintSummaryFromApprovedRows = (approvedRows) => {
@@ -895,42 +951,125 @@ function ManagerReports() {
       return;
     }
 
-    // loans (same table/footer style as finance/cashier/loans.js; cumulative Received column)
-    const loanRows = paymentsInRange.filter((p) => isLoanPaymentType(p));
-    const sortedLoanRows = [...loanRows].sort(
+    // loans — same document layout + summary math as boma/loans.js
+    const sortedLoanRows = [...loanPaymentsInRange].sort(
       (a, b) =>
         new Date(b.updated_at || b.created_at || 0) - new Date(a.updated_at || a.created_at || 0)
     );
-    const totalLoanAmount = sortedLoanRows.reduce(
-      (sum, p) => sum + Math.max(0, (Number(p.total_amount) || 0) - (Number(p.discount_amount) || 0)),
+
+    const getLoanItems = (p) => {
+      if (p.items && p.items.length > 0) {
+        return p.items.map((item) => ({
+          name: (item.sparepart_name || 'Unknown').replace(/</g, '&lt;'),
+          partNo: (item.sparepart_number || 'N/A').toUpperCase(),
+          quantity: parseInt(item.quantity, 10) || 0,
+          unitPrice: parseFloat(item.unit_price || item.price) || 0,
+        }));
+      }
+      return [
+        {
+          name: (p.sparepart_name || '—').replace(/</g, '&lt;'),
+          partNo: (p.sparepart_number || 'N/A').toUpperCase(),
+          quantity: parseInt(p.quantity, 10) || 0,
+          unitPrice: parseFloat(p.unit_price || p.price) || 0,
+        },
+      ];
+    };
+
+    const tableHeader = `
+            <thead>
+              <tr>
+                <th class="tc">S.No</th>
+                <th class="tl">Date</th>
+                <th class="tl">Spare part</th>
+                <th class="tc">Qty</th>
+                <th class="tr">Unit price (TZS)</th>
+                <th class="tr">Total amount (TZS)</th>
+                <th class="tr">Amount received (TZS)</th>
+                <th class="tr">Amount remain (TZS)</th>
+              </tr>
+            </thead>`;
+
+    const loansSectionsHtml =
+      sortedLoanRows.length === 0
+        ? '<table class="tax-inv-table">' +
+          tableHeader +
+          `<tbody><tr><td colspan="8" style="text-align:center;padding:12px;">No loans found</td></tr></tbody></table>`
+        : sortedLoanRows
+            .map((p) => {
+              const discount = Number(p.discount_amount) || 0;
+              const subTotal = getLoanSubTotal(p);
+              const totalAfterDiscount = getLoanNetTotal(p);
+              const received = Number(p.amount_received) || 0;
+              const amountRemain = getLoanAmountRemainForDisplay(p);
+              const customerName = (p.customer_name || '').toUpperCase().replace(/</g, '&lt;');
+              const customerPhone = String(p.customer_phone || '—').replace(/</g, '&lt;');
+              const items = getLoanItems(p);
+              const dateStr = formatDateTime(p.created_at);
+
+              const rows = items
+                .map((item, idx) => {
+                  const sparePartName = `${item.name} (${item.partNo})`;
+                  const lineTotal = item.quantity * item.unitPrice;
+                  const amountReceivedForLine =
+                    subTotal > 0 ? (lineTotal / subTotal) * received : 0;
+                  const amountRemainForLine =
+                    subTotal > 0 ? (lineTotal / subTotal) * amountRemain : 0;
+                  return `
+                <tr>
+                  <td class="tc">${idx + 1}</td>
+                  <td class="tl">${dateStr}</td>
+                  <td class="tl">${sparePartName}</td>
+                  <td class="tc">${item.quantity}</td>
+                  <td class="tr">${formatPrice(item.unitPrice)}</td>
+                  <td class="tr">${formatPrice(lineTotal)}</td>
+                  <td class="tr">${formatPrice(amountReceivedForLine)}</td>
+                  <td class="tr">${formatPrice(amountRemainForLine)}</td>
+                </tr>`;
+                })
+                .join('');
+
+              const totalRow = `
+                <tr class="total-row total-final">
+                  <td colspan="5" class="tr">Total</td>
+                  <td class="tr">${formatPrice(totalAfterDiscount)}</td>
+                  <td class="tr">${formatPrice(received)}</td>
+                  <td class="tr">${formatPrice(amountRemain)}</td>
+                </tr>`;
+
+              return `
+          <div class="tax-inv-customer">
+            <strong>Customer Name:</strong> ${customerName}<br />
+            <strong>Phone:</strong> ${customerPhone}<br />
+            <strong>Discount (TZS):</strong> ${formatPrice(discount)}
+          </div>
+          <table class="tax-inv-table">
+            ${tableHeader}
+            <tbody>
+              ${rows}
+              ${totalRow}
+            </tbody>
+          </table>`;
+            })
+            .join('');
+
+    const totalDiscountAmount = sortedLoanRows.reduce(
+      (sum, p) => sum + (Number(p.discount_amount) || 0),
       0
     );
-    const totalAmountRemain = sortedLoanRows.reduce((sum, p) => sum + getAmountRemainLoan(p), 0);
-
-    const rows =
-      sortedLoanRows.length === 0
-        ? '<tr><td colspan="8" style="text-align:center">No loans found</td></tr>'
-        : sortedLoanRows
-            .map(
-              (p, idx) =>
-                `<tr><td class="tc">${idx + 1}</td><td>${String(p.customer_name || '—')
-                  .replace(/</g, '&lt;')
-                  .toUpperCase()}</td><td>${(p.customer_phone || '—').replace(/</g, '&lt;')}</td><td class="tr">${formatPrice(
-                  (Number(p.total_amount) || 0) - (Number(p.discount_amount) || 0)
-                )}</td><td class="tr">${formatPrice(getAmountRemainLoan(p))}</td><td class="tr">${formatPrice(
-                  Number(p.amount_received) || 0
-                )}</td><td>${(p.payment_method || '—').replace(/</g, '&lt;')}</td><td>${(getLoanStatus(p) || '—').replace(
-                  /</g,
-                  '&lt;'
-                )}</td></tr>`
-            )
-            .join('');
+    const totalReceivedAmount = sortedLoanRows.reduce(
+      (sum, p) => sum + (Number(p.amount_received) || 0),
+      0
+    );
+    const totalLoanAmount = sortedLoanRows.reduce((sum, p) => sum + getLoanSubTotal(p), 0);
+    const totalNetLoanAmount = sortedLoanRows.reduce((sum, p) => sum + getLoanNetTotal(p), 0);
+    const totalAmountRemain = Math.max(0, totalNetLoanAmount - totalReceivedAmount);
 
     const loansHtml = `<!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8"/>
-  <title>Loans Report</title>
+  <title>Loans Report - ${BRAND_NAME}</title>
   <style>
     * { box-sizing: border-box; }
     body { font-family: 'Segoe UI', Tahoma, Arial, sans-serif; max-width: 900px; margin: 0 auto; padding: 24px; color: #222; font-size: 11px; line-height: 1.4; }
@@ -948,12 +1087,16 @@ function ManagerReports() {
     .tax-inv-table { width: 100%; border-collapse: collapse; margin: 0 0 20px 0; font-size: 10px; border: 1px solid #333; }
     .tax-inv-table th, .tax-inv-table td { border: 1px solid #333; padding: 6px 8px; vertical-align: middle; }
     .tax-inv-table th { background: #f0f0f0; font-weight: 700; text-align: center; font-size: 10px; }
+    .tax-inv-table th.tl { text-align: left; }
     .tax-inv-table .tc { text-align: center; }
     .tax-inv-table .tr { text-align: right; }
+    .tax-inv-table .tl { text-align: left; }
     .tax-inv-footer { margin-top: 28px; font-size: 11px; border-top: 1px solid #ccc; padding-top: 16px; }
     .tax-inv-footer-row { margin-bottom: 12px; }
-    .tax-inv-footer-row label { display: inline-block; min-width: 180px; font-weight: 600; }
+    .tax-inv-footer-row label { display: inline-block; min-width: 240px; font-weight: 600; }
     .tax-inv-disclaimer { margin-top: 28px; font-style: italic; color: #666; font-size: 10px; }
+    .tax-inv-customer { margin-bottom: 12px; padding: 8px 0; }
+    .total-row td { font-weight: 700; background: #fafafa; }
     @media print { body { padding: 16px; } .tax-inv-logo { max-height: 52px; } }
   </style>
 </head>
@@ -961,11 +1104,11 @@ function ManagerReports() {
   <div class="tax-inv-top">
     <div class="tax-inv-left">
       <img src="${String(logoSrcForPrint).replace(/"/g, '&quot;')}" alt="Logo" class="tax-inv-logo" />
-      ${getPrintCompanyHtml("tax-inv-company", BRAND_ADDRESS_GEITA)}
+      ${getPrintCompanyHtml('tax-inv-company', BRAND_ADDRESS_GEITA)}
     </div>
     <div class="tax-inv-meta">
-      <p><strong>TRN NO:</strong> 182-150-770</p>
-      <p><strong>Report No:</strong> LNS-${new Date().toISOString().slice(0, 10)}</p>
+      ${getPrintTinHtml()}
+      <p><strong>Report:</strong> Loans</p>
       <p><strong>Period:</strong> ${String(periodLabel).replace(/</g, '&lt;')}</p>
       <p><strong>Printed:</strong> ${new Date().toLocaleString('en-GB')}</p>
     </div>
@@ -973,30 +1116,16 @@ function ManagerReports() {
 
   <h1 class="tax-inv-title">LOANS REPORT</h1>
 
-  <table class="tax-inv-table">
-    <thead>
-      <tr>
-        <th>S.No</th>
-        <th>Customer</th>
-        <th>Phone</th>
-        <th>Total (TZS)</th>
-        <th>Remain (TZS)</th>
-        <th>Received (TZS)</th>
-        <th>Payment</th>
-        <th>Loan Status</th>
-      </tr>
-    </thead>
-    <tbody>
-      ${rows}
-    </tbody>
-  </table>
+  ${loansSectionsHtml}
 
   <div class="tax-inv-footer">
-    <div class="tax-inv-footer-row"><label>TOTAL LOAN AMOUNT:</label> TZS ${formatPrice(totalLoanAmount)}</div>
-    <div class="tax-inv-footer-row"><label>TOTAL AMOUNT REMAIN:</label> TZS ${formatPrice(totalAmountRemain)}</div>
+    <div class="tax-inv-footer-row"><label>Total loan amount (TZS):</label> ${formatPrice(totalLoanAmount)}</div>
+    <div class="tax-inv-footer-row"><label>Total discount (TZS):</label> ${formatPrice(totalDiscountAmount)}</div>
+    <div class="tax-inv-footer-row"><label>Total amount received (TZS):</label> ${formatPrice(totalReceivedAmount)}</div>
+    <div class="tax-inv-footer-row"><label>Total amount remain (TZS):</label> ${formatPrice(totalAmountRemain)}</div>
   </div>
 
-  <p class="tax-inv-disclaimer">*This is a computer generated receipt, hence no signature is required.*</p>
+  <p class="tax-inv-disclaimer">*This is a computer generated loans report, hence no signature is required.*</p>
 </body>
 </html>`;
     openPrintWindow(loansHtml);

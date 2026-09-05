@@ -32,7 +32,7 @@ import { geitaLabels } from './geitaLabels';
 import GeitaSidebar from './components/GeitaSidebar';
 import GeitaPageHeader from './components/GeitaPageHeader';
 import { PageLoader } from '../../components/LoadingSpinner';
-import { BRAND_NAME, DEFAULT_SUPPLIER, getPrintCompanyHtml, BRAND_ADDRESS_GEITA } from '../../utils/brand';
+import { BRAND_NAME, DEFAULT_SUPPLIER, getPrintCompanyHtml, getPrintTinHtml, BRAND_ADDRESS_GEITA } from '../../utils/brand';
 
 function ManagerLoans() {
   const navigate = useNavigate();
@@ -533,6 +533,7 @@ function ManagerLoans() {
               ${getPrintCompanyHtml("tax-inv-company", BRAND_ADDRESS_GEITA)}
             </div>
             <div class="tax-inv-meta">
+              ${getPrintTinHtml()}
               <p><strong>Report:</strong> ${String(reportLabel).replace(/</g, '&lt;')}</p>
               <p><strong>Period:</strong> ${String(dateRangeLabel).replace(/</g, '&lt;')}</p>
               <p><strong>Printed:</strong> ${new Date().toLocaleString('en-GB')}</p>
@@ -782,7 +783,7 @@ function ManagerLoans() {
               ${getPrintCompanyHtml("tax-inv-company", BRAND_ADDRESS_GEITA)}
             </div>
             <div class="tax-inv-meta">
-              <p><strong>TIN:</strong> 123-456-789</p>
+              ${getPrintTinHtml()}
               <p><strong>Loan ID:</strong> #${payment.id}</p>
               <p><strong>Date:</strong> ${formatDateInvoice(payment.created_at)}</p>
             </div>
@@ -1335,11 +1336,7 @@ function ManagerLoans() {
     setAddLoanDiscountInput(p.discount_amount != null ? String(p.discount_amount) : '');
     setAddLoanAmountReceivedInput(p.amount_received != null ? String(p.amount_received) : '');
 
-    const dbRemain = p?.amount_remain != null ? Number(p.amount_remain) : null;
-    const remainVal =
-      dbRemain != null && !Number.isNaN(dbRemain)
-        ? Math.max(0, dbRemain)
-        : Math.max(0, (Number(p?.total_amount) || 0) - (Number(p?.amount_received) || 0));
+    const remainVal = getAmountRemain(p);
     setAddLoanAmountRemainInput(remainVal != null ? String(remainVal) : '');
   }, [
     showAddLoanModal,
