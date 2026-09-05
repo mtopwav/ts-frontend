@@ -703,7 +703,6 @@ function ManagerSpareparts() {
               <table className="payments-table manager-spareparts-table">
                 <thead>
                   <tr>
-                    <th className="manager-col-actions">Actions</th>
                     <th className="manager-col-serial">S.No</th>
                     <th>Part Name</th>
                     <th>Part Number</th>
@@ -718,11 +717,11 @@ function ManagerSpareparts() {
                 <tbody>
                   {dataLoading ? (
                     <tr>
-                      <td colSpan="10" className="no-data loading-cell"><InlineLoader message={t.loadingSpareParts} size="md" /></td>
+                      <td colSpan="9" className="no-data loading-cell"><InlineLoader message={t.loadingSpareParts} size="md" /></td>
                     </tr>
                   ) : sortedParts.length === 0 ? (
                     <tr>
-                      <td colSpan="10" className="no-data">
+                      <td colSpan="9" className="no-data">
                         No spare parts found
                       </td>
                     </tr>
@@ -737,19 +736,6 @@ function ManagerSpareparts() {
                             : 'manager-qty-low';
                       return (
                         <tr key={p.id}>
-                          <td className="manager-col-actions">
-                            <div className="action-buttons">
-                              <button className="action-btn view" title={t.view} onClick={() => handleView(p)}>
-                                <FaEye />
-                              </button>
-                              <button className="action-btn edit" title="Edit row" onClick={() => openEditRowModal(p)}>
-                                <FaEdit />
-                              </button>
-                              <button className="action-btn delete" title="Delete" onClick={() => handleDelete(p)}>
-                                <FaTrashAlt />
-                              </button>
-                            </div>
-                          </td>
                           <td className="manager-col-serial">{index + 1}</td>
                           <td>{capitalizeName(p.part_name)}</td>
                           <td>{(p.part_number || '—').toUpperCase()}</td>

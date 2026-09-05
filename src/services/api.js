@@ -458,10 +458,11 @@ export const returnPayment = (id, { return_amount }) => {
 };
 
 /**
- * Get all expenses
+ * Get all expenses. Optional location filter (Boma / Geita).
  */
-export const getExpenses = () => {
-  return apiRequest("/expenses");
+export const getExpenses = (location) => {
+  const q = location ? `?location=${encodeURIComponent(location)}` : "";
+  return apiRequest(`/expenses${q}`);
 };
 
 /**

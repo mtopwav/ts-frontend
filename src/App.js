@@ -23,7 +23,7 @@ import ManagerGenerateSales from './pages/geita/generateSales';
 import ManagerTransactions from './pages/geita/transactions';
 import ManagerLoans from './pages/geita/loans';
 import ManagerReports from './pages/geita/reports';
-import ManagerMessages from './pages/geita/messages';
+import ManagerExpenses from './pages/geita/expenses';
 import ManagerSales from './pages/geita/sales';
 
 import BomaDashboard from './pages/boma/dashboard';
@@ -33,7 +33,7 @@ import BomaGenerateSales from './pages/boma/generateSales';
 import BomaTransactions from './pages/boma/transactions';
 import BomaLoans from './pages/boma/loans';
 import BomaReports from './pages/boma/reports';
-import BomaMessages from './pages/boma/messages';
+import BomaExpenses from './pages/boma/expenses';
 import BomaSales from './pages/boma/sales';
 
 import { getCurrentLanguage } from './utils/translations';
@@ -76,8 +76,8 @@ function App() {
         <Route path="/geita/generate-sales" element={<ManagerGenerateSales />} />
         <Route path="/geita/transactions" element={<ManagerTransactions />} />
         <Route path="/geita/loans" element={<ManagerLoans />} />
+        <Route path="/geita/expenses" element={<ManagerExpenses />} />
         <Route path="/geita/reports" element={<ManagerReports />} />
-        <Route path="/geita/messages" element={<ManagerMessages />} />
         <Route path="/geita/sales" element={<ManagerSales />} />
 
         <Route path="/boma" element={<Navigate to="/boma/dashboard" replace />} />
@@ -87,8 +87,8 @@ function App() {
         <Route path="/boma/generate-sales" element={<BomaGenerateSales />} />
         <Route path="/boma/transactions" element={<BomaTransactions />} />
         <Route path="/boma/loans" element={<BomaLoans />} />
+        <Route path="/boma/expenses" element={<BomaExpenses />} />
         <Route path="/boma/reports" element={<BomaReports />} />
-        <Route path="/boma/messages" element={<BomaMessages />} />
         <Route path="/boma/sales" element={<BomaSales />} />
 
         <Route path="/finance/accountant/dashboard" element={<Navigate to="/admin/finances" replace />} />

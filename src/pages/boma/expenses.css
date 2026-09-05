@@ -1,0 +1,243 @@
+/* Manager Expenses */
+
+.payments-container .payments-content.manager-expenses-page {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.manager-expenses-action-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  width: 100%;
+  margin-bottom: 20px;
+}
+
+.manager-expenses-action-bar .search-box {
+  flex: 1 1 280px;
+  max-width: none;
+  min-width: 0;
+  position: relative;
+}
+
+.manager-expenses-action-bar .search-box .search-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted, #8899a6);
+  pointer-events: none;
+}
+
+.manager-expenses-action-bar .search-input {
+  width: 100%;
+  padding: 10px 12px 10px 38px;
+  border: 1px solid var(--border-color, #dde3ea);
+  border-radius: 8px;
+  background: var(--bg-secondary, #fff);
+  color: var(--text);
+  font-size: 0.95rem;
+}
+
+.manager-expenses-action-bar .status-filter {
+  min-width: 140px;
+  height: 42px;
+}
+
+.manager-expenses-page .stats-row.manager-stats-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.manager-expenses-page .manager-stats-row .stat-card {
+  padding: 20px 24px;
+  min-height: 96px;
+  display: flex;
+  align-items: center;
+}
+
+.manager-expenses-page .manager-stats-row .stat-info h3 {
+  margin: 0 0 6px 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #5a6c7d;
+}
+
+.manager-expenses-page .manager-stats-row .stat-value {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.manager-expenses-section {
+  margin-top: 8px;
+}
+
+.manager-expenses-section .manager-section-title {
+  margin: 0 0 16px 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.manager-expenses-table .manager-col-actions {
+  min-width: 100px;
+  width: 100px;
+}
+
+.manager-expenses-table .status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.manager-expenses-table .status-badge.paid {
+  background: rgba(34, 160, 107, 0.12);
+  color: #1b7a4e;
+}
+
+.manager-expenses-table .status-badge.pending {
+  background: rgba(230, 162, 60, 0.15);
+  color: #a66b12;
+}
+
+.manager-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  padding: 20px;
+}
+
+.manager-modal-content {
+  width: 100%;
+  max-width: 520px;
+  max-height: 90vh;
+  overflow: auto;
+  background: var(--bg-secondary, #fff);
+  border-radius: 12px;
+  border: 1px solid var(--border-color, #dde3ea);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.18);
+  padding: 20px 22px;
+}
+
+.manager-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.manager-modal-header h3 {
+  margin: 0;
+  font-size: 1.15rem;
+  color: var(--text);
+}
+
+.manager-modal-close {
+  border: none;
+  background: transparent;
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+  color: var(--text-muted, #667);
+}
+
+.manager-expense-form {
+  display: grid;
+  gap: 14px;
+}
+
+.manager-expense-form .form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.manager-expense-form .form-field label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.manager-expense-form .form-field input,
+.manager-expense-form .form-field select,
+.manager-expense-form .form-field textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border-color, #dde3ea);
+  border-radius: 8px;
+  background: var(--bg-secondary, #fff);
+  color: var(--text);
+  font-size: 0.95rem;
+  box-sizing: border-box;
+}
+
+.manager-expense-form .form-field textarea {
+  min-height: 88px;
+  resize: vertical;
+}
+
+.manager-expense-form .form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.manager-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 8px;
+  padding-top: 8px;
+}
+
+.action-btn.add,
+.action-btn.save {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 16px;
+  border: none;
+  border-radius: 8px;
+  background: var(--primary, #8b1e3f);
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.action-btn.cancel {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 16px;
+  border: 1px solid var(--border-color, #dde3ea);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+@media (max-width: 768px) {
+  .manager-expenses-page .stats-row.manager-stats-row {
+    grid-template-columns: 1fr;
+  }
+
+  .manager-expense-form .form-row {
+    grid-template-columns: 1fr;
+  }
+}

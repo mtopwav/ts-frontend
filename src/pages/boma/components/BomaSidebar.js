@@ -7,6 +7,7 @@ import {
   FaFileInvoice,
   FaReceipt,
   FaMoneyBillWave,
+  FaWallet,
   FaChartBar,
 } from 'react-icons/fa';
 import logo from '../../../images/logo.png';
@@ -21,6 +22,7 @@ const NAV_ITEMS = [
   { to: '/boma/generate-sales', Icon: FaFileInvoice, labelKey: 'generateSales' },
   { to: '/boma/transactions', Icon: FaReceipt, labelKey: 'transactions' },
   { to: '/boma/loans', Icon: FaMoneyBillWave, labelKey: 'loans' },
+  { to: '/boma/expenses', Icon: FaWallet, labelKey: 'expenses' },
   { to: '/boma/reports', Icon: FaChartBar, labelKey: 'reports' },
 ];
 
@@ -32,6 +34,7 @@ function navLabel(t, key) {
     generateSales: t.generateSales,
     transactions: t.transactions,
     loans: t.loans,
+    expenses: t.expenses,
     reports: t.reports,
   };
   return map[key] || t[key] || key;
