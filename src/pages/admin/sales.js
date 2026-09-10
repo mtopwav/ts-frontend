@@ -28,7 +28,8 @@ import {
   FaPrint,
   FaFilter,
   FaChevronDown,
-  FaMapMarkerAlt
+  FaMapMarkerAlt,
+  FaWallet
 } from 'react-icons/fa';
 import './categories&brands.css';
 import './sales.css';
@@ -904,6 +905,13 @@ function Sales() {
           >
             <FaMoneyBillWave className="nav-icon" />
             <span>{t.loans}</span>
+          </Link>
+          <Link
+            to="/admin/expenses"
+            className={'nav-item' + (window.location.pathname === '/admin/expenses' ? ' active' : '')}
+          >
+            <FaWallet className="nav-icon" />
+            <span>{t.expenses || 'Expenses'}</span>
           </Link>
           <Link to="/admin/reports" className="nav-item">
             <FaChartBar className="nav-icon" />

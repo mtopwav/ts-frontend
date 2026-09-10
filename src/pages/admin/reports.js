@@ -22,7 +22,8 @@ import {
   FaFileInvoiceDollar,
   FaMoneyBillWave,
   FaReceipt,
-  FaUndo
+  FaUndo,
+  FaWallet
 } from 'react-icons/fa';
 import './dashboard.css';
 import './reports.css';
@@ -346,6 +347,13 @@ function AdminReports() {
           >
             <FaMoneyBillWave className="nav-icon" />
             <span>{t.loans}</span>
+          </Link>
+          <Link
+            to="/admin/expenses"
+            className={'nav-item' + (location.pathname === '/admin/expenses' ? ' active' : '')}
+          >
+            <FaWallet className="nav-icon" />
+            <span>{t.expenses || 'Expenses'}</span>
           </Link>
           <Link to="/admin/reports" className="nav-item active">
             <FaChartBar className="nav-icon" />

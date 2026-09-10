@@ -24,6 +24,7 @@ import {
   FaMoneyBillWave,
   FaChartBar,
   FaTrash,
+  FaWallet,
 } from 'react-icons/fa';
 import './dashboard.css';
 import './transactions.css';
@@ -49,6 +50,7 @@ function AdminTransactions() {
   const [payments, setPayments] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [paymentMethodFilter, setPaymentMethodFilter] = useState('All');
+  const [statusFilter, setStatusFilter] = useState('All');
   const [branchFilter, setBranchFilter] = useState('All');
   const [showLoanOnly, setShowLoanOnly] = useState(false);
   const [dateFrom, setDateFrom] = useState('');
@@ -222,42 +224,62 @@ function AdminTransactions() {
     )
   );
 
-  const isApprovedPayment = (p) => {
-    const total = Number(p.total_amount) || 0;
-    const received = Number(p.amount_received) || 0;
-    return p.status === 'Approved' || (p.status === 'Pending' && total - received === 0);
+  const getAmountRemain = (p) => {
+    const total = Number(p?.total_amount) || 0;
+    const received = Number(p?.amount_received) || 0;
+    const discount = Number(p?.discount_amount) || 0;
+    if (p?.amount_remain != null) return Math.max(0, Number(p.amount_remain) || 0);
+    return Math.max(0, total - received - discount);
   };
 
-  const approvedPaymentsForTable = filteredPayments.filter((p) => isApprovedPayment(p));
+  const getDisplayStatus = (p) => {
+    const status = String(p?.status || '').trim();
+    if (status === 'Rejected') return 'Rejected';
+    if (status === 'Returned' || Number(p?.return_amount) > 0) return 'Returned';
+    if (status === 'Approved' || (status === 'Pending' && getAmountRemain(p) === 0)) return 'Approved';
+    if (status === 'Pending') return 'Pending';
+    return status || 'Pending';
+  };
+
+  /** Counted in money cards / print totals (approved, or fully paid pending). */
+  const isApprovedPayment = (p) => getDisplayStatus(p) === 'Approved';
+
+  const matchesStatusFilter = (p) => {
+    if (statusFilter === 'All') return true;
+    return getDisplayStatus(p) === statusFilter;
+  };
+
+  const tablePayments = filteredPayments.filter((p) => matchesStatusFilter(p));
+  const approvedPaymentsForTotals = filteredPayments.filter((p) => isApprovedPayment(p));
   const dateApprovedPayments = dateFilteredPayments.filter((p) => isApprovedPayment(p));
 
   const getMethod = (p) => (p.payment_method || '').toLowerCase();
 
-  const totalCash = approvedPaymentsForTable.reduce(
+  const totalCash = approvedPaymentsForTotals.reduce(
     (sum, p) => (getMethod(p).includes('cash') ? sum + (Number(p.amount_received) || 0) : sum),
     0
   );
 
-  const totalBankTransfer = approvedPaymentsForTable.reduce(
+  const totalBankTransfer = approvedPaymentsForTotals.reduce(
     (sum, p) => (getMethod(p).includes('bank') || getMethod(p).includes('transfer') ? sum + (Number(p.amount_received) || 0) : sum),
     0
   );
 
-  const totalMpesa = approvedPaymentsForTable.reduce((sum, p) => {
+  const totalMpesa = approvedPaymentsForTotals.reduce((sum, p) => {
     const method = getMethod(p);
     return method.includes('mpesa') || method.includes('m-pesa')
       ? sum + (Number(p.amount_received) || 0)
       : sum;
   }, 0);
 
-  const totalMixByYas = approvedPaymentsForTable.reduce((sum, p) => {
+  const totalMixByYas = approvedPaymentsForTotals.reduce((sum, p) => {
     const method = getMethod(p);
     return method.includes('mix by yas') || method.includes('yas')
       ? sum + (Number(p.amount_received) || 0)
       : sum;
   }, 0);
 
-  const totalAirtelMoney = approvedPaymentsForTable.reduce((sum, p) => {
+  const totalAirtelMoney = approvedPaymentsForTotals.reduce((sum, p) => {
     const method = getMethod(p);
     return method.includes('airtel')
       ? sum + (Number(p.amount_received) || 0)
@@ -392,10 +414,10 @@ function AdminTransactions() {
             </thead>`;
 
     const rowsHtml =
-      approvedPaymentsForTable.length === 0
+      tablePayments.length === 0
         ? '<tbody><tr><td colspan="8" style="text-align:center;padding:12px;">No transactions found</td></tr></tbody>'
         : '<tbody>' +
-          approvedPaymentsForTable
+          tablePayments
             .map((p, idx) => {
               const received = Number(p.amount_received) || 0;
               const items =
@@ -417,7 +439,7 @@ function AdminTransactions() {
                   <td class="tc">${(p.payment_type || '—').replace(/</g, '&lt;')}</td>
                   <td class="tc">${(p.payment_method || '—').replace(/</g, '&lt;')}</td>
                   <td class="tr">${formatCurrency(received)}</td>
-                  <td class="tl">${p.status || 'Pending'}</td>
+                  <td class="tl">${getDisplayStatus(p)}</td>
                 </tr>
               `;
             })
@@ -604,6 +626,10 @@ function AdminTransactions() {
             <FaMoneyBillWave className="nav-icon" />
             <span>{t.loans}</span>
           </Link>
+          <Link to="/admin/expenses" className={'nav-item' + (location.pathname === '/admin/expenses' ? ' active' : '')}>
+            <FaWallet className="nav-icon" />
+            <span>{t.expenses || 'Expenses'}</span>
+          </Link>
           <Link to="/admin/reports" className={'nav-item' + (location.pathname === '/admin/reports' ? ' active' : '')}>
             <FaChartBar className="nav-icon" />
             <span>{t.reports}</span>
@@ -712,6 +738,22 @@ function AdminTransactions() {
                   <FaFilter className="filter-icon" />
                   <select
                     className="filter-select"
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                    title={t.status || 'Status'}
+                    aria-label={t.status || 'Status'}
+                  >
+                    <option value="All">{t.allStatus || 'All Status'}</option>
+                    <option value="Pending">{t.pending || 'Pending'}</option>
+                    <option value="Approved">{t.approved || 'Approved'}</option>
+                    <option value="Rejected">{t.rejected || 'Rejected'}</option>
+                    <option value="Returned">Returned</option>
+                  </select>
+                </div>
+                <div className="filter-group">
+                  <FaFilter className="filter-icon" />
+                  <select
+                    className="filter-select"
                     value={branchFilter}
                     onChange={(e) => setBranchFilter(e.target.value)}
                     title={t.location}
@@ -812,23 +854,16 @@ function AdminTransactions() {
                   </tr>
                 </thead>
                 <tbody>
-                  {approvedPaymentsForTable.length === 0 ? (
+                  {tablePayments.length === 0 ? (
                     <tr>
                       <td colSpan="11" className="no-data">
-                        No approved transactions found
+                        No transactions found
                       </td>
                     </tr>
                   ) : (
-                    approvedPaymentsForTable.map((payment, index) => {
-                      const total = Number(payment.total_amount) || 0;
-                      const received = Number(payment.amount_received) || 0;
-                      const amountRemain = total - received;
-                      const displayStatus =
-                        payment.status === 'Rejected'
-                          ? 'Rejected'
-                          : payment.status === 'Approved' || amountRemain === 0
-                            ? 'Approved'
-                            : 'Pending';
+                    tablePayments.map((payment, index) => {
+                      const amountRemain = getAmountRemain(payment);
+                      const displayStatus = getDisplayStatus(payment);
 
                       return (
                         <tr key={payment.id}>
@@ -929,15 +964,7 @@ function AdminTransactions() {
                       <label>Status</label>
                       <div className="txn-form-value">
                         {(() => {
-                          const total = Number(selectedPayment.total_amount) || 0;
-                          const received = Number(selectedPayment.amount_received) || 0;
-                          const remain = total - received;
-                          const displayStatus =
-                            selectedPayment.status === 'Rejected'
-                              ? 'Rejected'
-                              : selectedPayment.status === 'Approved' || remain === 0
-                                ? 'Approved'
-                                : 'Pending';
+                          const displayStatus = getDisplayStatus(selectedPayment);
                           return (
                             <span className={`status-badge ${getStatusClass(displayStatus)}`}>
                               {displayStatus === 'Approved' && <FaCheckCircle />}

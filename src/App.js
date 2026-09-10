@@ -14,7 +14,7 @@ import AdminLoans from './pages/admin/loans';
 import AdminReports from './pages/admin/reports';
 import AdminSettings from './pages/admin/setting';
 import AdminFinances from './pages/admin/finances';
-import AdminMessages from './pages/admin/messages';
+import AdminExpenses from './pages/admin/expenses';
 
 import ManagerDashboard from './pages/geita/dashboard';
 import ManagerSpareparts from './pages/geita/spareparts';
@@ -67,7 +67,7 @@ function App() {
         <Route path="/admin/reports" element={<AdminReports />} />
         <Route path="/admin/settings" element={<AdminSettings />} />
         <Route path="/admin/finances" element={<AdminFinances />} />
-        <Route path="/admin/messages" element={<AdminMessages />} />
+        <Route path="/admin/expenses" element={<AdminExpenses />} />
 
         <Route path="/geita" element={<Navigate to="/geita/dashboard" replace />} />
         <Route path="/geita/dashboard" element={<ManagerDashboard />} />

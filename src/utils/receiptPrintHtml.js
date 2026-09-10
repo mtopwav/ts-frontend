@@ -6,7 +6,8 @@ export const RECEIPT_PRINT_STYLES = `
   body { font-family: 'Segoe UI', Tahoma, Arial, sans-serif; max-width: 900px; margin: 0 auto; padding: 24px; color: #222; font-size: 11px; line-height: 1.4; }
   .tax-inv-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; padding-bottom: 20px; border-bottom: 2px solid #333; }
   .tax-inv-left { display: flex; align-items: flex-start; gap: 20px; flex: 1; }
-  .tax-inv-logo { max-height: 60px; max-width: 140px; object-fit: contain; }
+  .tax-inv-logo { max-height: 60px; max-width: 140px; object-fit: contain; display: block; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color-adjust: exact !important; }
+  @media print { .tax-inv-logo { max-height: 52px; } }
   .tax-inv-company h2 { margin: 0 0 10px 0; font-size: 1.15rem; font-weight: 700; color: #111; }
   .tax-inv-address { margin: 0; color: #444; font-size: 10px; }
   .tax-inv-contact { margin-top: 8px; font-size: 10px; color: #555; }

@@ -702,7 +702,6 @@ function ManagerSpareparts() {
               <table className="payments-table manager-spareparts-table">
                 <thead>
                   <tr>
-                    <th className="manager-col-serial">S.No</th>
                     <th>Part Name</th>
                     <th>Part Number</th>
                     <th>Category</th>
@@ -716,16 +715,16 @@ function ManagerSpareparts() {
                 <tbody>
                   {dataLoading ? (
                     <tr>
-                      <td colSpan="9" className="no-data loading-cell"><InlineLoader message={t.loadingSpareParts} size="md" /></td>
+                      <td colSpan="8" className="no-data loading-cell"><InlineLoader message={t.loadingSpareParts} size="md" /></td>
                     </tr>
                   ) : sortedParts.length === 0 ? (
                     <tr>
-                      <td colSpan="9" className="no-data">
+                      <td colSpan="8" className="no-data">
                         No spare parts found
                       </td>
                     </tr>
                   ) : (
-                    sortedParts.map((p, index) => {
+                    sortedParts.map((p) => {
                       const qty = Number(p.quantity) || 0;
                       const qtyClass =
                         qty > 100
@@ -735,7 +734,6 @@ function ManagerSpareparts() {
                             : 'manager-qty-low';
                       return (
                         <tr key={p.id}>
-                          <td className="manager-col-serial">{index + 1}</td>
                           <td>{capitalizeName(p.part_name)}</td>
                           <td>{(p.part_number || '—').toUpperCase()}</td>
                           <td>{capitalizeName(p.category_name) || '—'}</td>

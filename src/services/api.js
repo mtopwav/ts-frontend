@@ -458,11 +458,15 @@ export const returnPayment = (id, { return_amount }) => {
 };
 
 /**
- * Get all expenses. Optional location filter (Boma / Geita).
+ * Get expenses. Optional location, date (YYYY-MM-DD), and status filters.
  */
-export const getExpenses = (location) => {
-  const q = location ? `?location=${encodeURIComponent(location)}` : "";
-  return apiRequest(`/expenses${q}`);
+export const getExpenses = (location, options = {}) => {
+  const params = new URLSearchParams();
+  if (location) params.set("location", location);
+  if (options?.date) params.set("date", options.date);
+  if (options?.status) params.set("status", options.status);
+  const q = params.toString() ? `?${params.toString()}` : "";
+  return apiRequest(`/expenses${q}`, { cache: "no-store" });
 };
 
 /**
@@ -482,6 +486,15 @@ export const updateExpense = (id, body) => {
   return apiRequest(`/expenses/${id}`, {
     method: "PUT",
     body
+  });
+};
+
+/**
+ * Delete expense
+ */
+export const deleteExpense = (id) => {
+  return apiRequest(`/expenses/${id}`, {
+    method: "DELETE"
   });
 };
 

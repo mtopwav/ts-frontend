@@ -1195,12 +1195,13 @@ function ManagerLoans() {
       setSplitMpesaInput('');
       setSplitYasInput('');
       setPaymentMethodInput('');
+      setShowEditModal(false);
       Swal.fire({
         icon: 'success',
         title: t.saved || 'Saved',
-        text: t.loanInstallmentSaved || 'Installment saved. You can add another payment or close when done.',
+        text: t.loanInstallmentSaved || 'Installment saved successfully.',
         confirmButtonColor: colors.primary,
-        timer: 2800,
+        timer: 2200,
         timerProgressBar: true,
       });
     } catch (error) {

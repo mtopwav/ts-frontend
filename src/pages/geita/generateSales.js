@@ -39,6 +39,7 @@ function ManagerGenerateSales() {
   const [partSearchInput, setPartSearchInput] = useState('');
   const [showPartDropdown, setShowPartDropdown] = useState(false);
   const [letters, setLetters] = useState('');
+  const [paymentType, setPaymentType] = useState('retail'); // 'retail' | 'wholesale'
   const [currentDateTime, setCurrentDateTime] = useState(getCurrentDateTime());
 
   useEffect(() => {
@@ -254,7 +255,13 @@ function ManagerGenerateSales() {
     );
   };
 
-  const getUnitPrice = (part) => Number(part.retail_price) || Number(part.unitPrice) || 0;
+  const getUnitPrice = (part) => {
+    if (!part) return 0;
+    if (paymentType === 'wholesale') {
+      return Number(part.wholesale_price) || Number(part.retail_price) || Number(part.unitPrice) || 0;
+    }
+    return Number(part.retail_price) || Number(part.unitPrice) || Number(part.wholesale_price) || 0;
+  };
 
   const getTotalAmount = () => {
     return selectedParts.reduce((sum, sp) => {
@@ -317,7 +324,7 @@ function ManagerGenerateSales() {
         employee_id: user?.id || user?.employee_id || null,
         location: BRANCH_GEITA,
         letters,
-        price_type: 'retail',
+        price_type: paymentType === 'wholesale' ? 'wholesale' : 'retail',
         items
       });
       if (!response || !response.success) throw new Error(response?.message || 'Failed to save payment');
@@ -326,6 +333,7 @@ function ManagerGenerateSales() {
       setSelectedParts([]);
       setPartSearchInput('');
       setLetters('');
+      setPaymentType('retail');
       Swal.fire({ icon: 'success', title: 'Success', text: 'Sale created. Pending approval.', confirmButtonColor: colors.primary });
       navigate('/geita/transactions');
     } catch (error) {
@@ -368,76 +376,99 @@ function ManagerGenerateSales() {
                 </div>
               ) : (
                 <form onSubmit={handleGenerateSale} className="boma-generate-form">
-                  <div className="form-col">
-                    <div className="form-field">
-                      <label className="form-label">
-                        {t.customer} <span className="required">*</span>
-                      </label>
-                      <div className="customer-search-container search-field">
-                        <FaSearch className="search-field-icon" aria-hidden />
+                  <section className="boma-generate-section form-row-full" aria-label="Sale options">
+                    <h3 className="boma-generate-section-title">{t.saleDetails || 'Sale details'}</h3>
+                    <div className="boma-generate-row">
+                      <div className="form-field">
+                        <label className="form-label" htmlFor="geita-payment-type">
+                          {t.paymentType || 'Payment Type'} <span className="required">*</span>
+                        </label>
+                        <select
+                          id="geita-payment-type"
+                          className="form-input form-select"
+                          value={paymentType}
+                          onChange={(e) => setPaymentType(e.target.value)}
+                          required
+                        >
+                          <option value="retail">{t.retail || 'Retail'}</option>
+                          <option value="wholesale">{t.wholesale || 'Wholesale'}</option>
+                        </select>
+                      </div>
+                      <div className="form-field">
+                        <label className="form-label" htmlFor="geita-total-amount">
+                          {t.totalAmount}
+                        </label>
                         <input
+                          id="geita-total-amount"
                           type="text"
-                          className="form-input"
-                          value={customerSearchInput}
-                          onChange={handleCustomerSearchChange}
-                          onFocus={handleCustomerFieldFocus}
-                          placeholder={t.searchCustomer}
-                          required={!selectedCustomerId}
+                          className="form-input form-input-readonly form-input-total"
+                          value={totalPrice ? `TZS ${formatPrice(totalPrice)}` : 'TZS 0'}
+                          readOnly
                         />
-                        {showCustomerDropdown && filteredCustomers.length > 0 && (
-                          <div className="dropdown-panel">
-                            {filteredCustomers.map((customer) => (
-                              <div
-                                key={customer.id}
-                                className="dropdown-item"
-                                onClick={() => handleCustomerSelect(customer)}
-                                onKeyDown={(e) => {
-                                  if (e.key === 'Enter') handleCustomerSelect(customer);
-                                }}
-                                role="button"
-                                tabIndex={0}
-                              >
-                                <div className="dropdown-item-title">{capitalizeName(customer.name)}</div>
-                                <div className="dropdown-item-meta">{customer.phone}</div>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                        {showCustomerDropdown && filteredCustomers.length === 0 && (
-                          <div className="dropdown-panel dropdown-empty">No customers found</div>
-                        )}
                       </div>
                     </div>
+                  </section>
 
-                    <div className="form-field">
-                      <label className="form-label" htmlFor="geita-customer-phone">
-                        {t.phone}
-                      </label>
-                      <input
-                        id="geita-customer-phone"
-                        type="text"
-                        className="form-input form-input-readonly"
-                        value={customerPhone}
-                        readOnly
-                        placeholder={t.customerPhonePlaceholder}
-                      />
+                  <section className="boma-generate-section form-row-full" aria-label="Customer">
+                    <h3 className="boma-generate-section-title">{t.customer || 'Customer'}</h3>
+                    <div className="boma-generate-row">
+                      <div className="form-field">
+                        <label className="form-label">
+                          {t.customer} <span className="required">*</span>
+                        </label>
+                        <div className="customer-search-container search-field">
+                          <FaSearch className="search-field-icon" aria-hidden />
+                          <input
+                            type="text"
+                            className="form-input"
+                            value={customerSearchInput}
+                            onChange={handleCustomerSearchChange}
+                            onFocus={handleCustomerFieldFocus}
+                            placeholder={t.searchCustomer}
+                            required={!selectedCustomerId}
+                          />
+                          {showCustomerDropdown && filteredCustomers.length > 0 && (
+                            <div className="dropdown-panel">
+                              {filteredCustomers.map((customer) => (
+                                <div
+                                  key={customer.id}
+                                  className="dropdown-item"
+                                  onClick={() => handleCustomerSelect(customer)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') handleCustomerSelect(customer);
+                                  }}
+                                  role="button"
+                                  tabIndex={0}
+                                >
+                                  <div className="dropdown-item-title">{capitalizeName(customer.name)}</div>
+                                  <div className="dropdown-item-meta">{customer.phone}</div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          {showCustomerDropdown && filteredCustomers.length === 0 && (
+                            <div className="dropdown-panel dropdown-empty">No customers found</div>
+                          )}
+                        </div>
+                      </div>
+                      <div className="form-field">
+                        <label className="form-label" htmlFor="geita-customer-phone">
+                          {t.phone}
+                        </label>
+                        <input
+                          id="geita-customer-phone"
+                          type="text"
+                          className="form-input form-input-readonly"
+                          value={customerPhone}
+                          readOnly
+                          placeholder={t.customerPhonePlaceholder}
+                        />
+                      </div>
                     </div>
-                  </div>
+                  </section>
 
-                  <div className="form-col">
-                    <div className="form-field">
-                      <label className="form-label" htmlFor="geita-total-amount">
-                        {t.totalAmount}
-                      </label>
-                      <input
-                        id="geita-total-amount"
-                        type="text"
-                        className="form-input form-input-readonly form-input-total"
-                        value={totalPrice ? `TZS ${formatPrice(totalPrice)}` : 'TZS 0'}
-                        readOnly
-                      />
-                    </div>
-
+                  <section className="boma-generate-section form-row-full" aria-label="Spare parts">
+                    <h3 className="boma-generate-section-title">{t.spareParts || 'Spare parts'}</h3>
                     <div className="form-field">
                       <label className="form-label">{t.addSparePart}</label>
                       <div className="part-search-container search-field">
@@ -466,7 +497,11 @@ function ManagerGenerateSales() {
                                 <div className="dropdown-item-title">{capitalizeName(part.name)}</div>
                                 <div className="dropdown-item-meta">
                                   {part.partNumber} · {part.brand} · TZS{' '}
-                                  {formatPrice(part.retail_price ?? part.unitPrice)}
+                                  {formatPrice(getUnitPrice(part))}
+                                  {' · '}
+                                  {paymentType === 'wholesale'
+                                    ? t.wholesale || 'Wholesale'
+                                    : t.retail || 'Retail'}
                                 </div>
                               </div>
                             ))}
@@ -493,6 +528,10 @@ function ManagerGenerateSales() {
                                   <div className="part-name">{capitalizeName(selectedPart.part.name)}</div>
                                   <div className="part-meta">
                                     {selectedPart.part.partNumber} · TZS {formatPrice(unitPrice)} each
+                                    {' · '}
+                                    {paymentType === 'wholesale'
+                                      ? t.wholesale || 'Wholesale'
+                                      : t.retail || 'Retail'}
                                   </div>
                                   <div className="part-qty-row">
                                     <span>{t.quantity}:</span>
@@ -524,7 +563,7 @@ function ManagerGenerateSales() {
                         </div>
                       </div>
                     )}
-                  </div>
+                  </section>
 
                   <div className="boma-generate-form-actions">
                     <button type="submit" className="boma-generate-submit">

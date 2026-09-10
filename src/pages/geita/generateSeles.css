@@ -36,13 +36,38 @@
 }
 
 .boma-generate-form {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 24px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
 }
 
 .boma-generate-form .form-row-full {
-  grid-column: 1 / -1;
+  width: 100%;
+}
+
+.boma-generate-section {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px 18px 16px;
+  background: var(--surface-muted);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+}
+
+.boma-generate-section-title {
+  margin: 0;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--primary-dark, #562731);
+}
+
+.boma-generate-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px 20px;
 }
 
 .boma-generate-form .form-col {
@@ -55,6 +80,7 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
+  min-width: 0;
 }
 
 .boma-generate-form .form-field label,
@@ -190,6 +216,10 @@
   margin-top: 4px;
 }
 
+.boma-generate-section .boma-selected-parts {
+  margin-top: 2px;
+}
+
 .boma-selected-parts-label {
   display: block;
   margin-bottom: 10px;
@@ -281,12 +311,11 @@
 }
 
 .boma-generate-form-actions {
-  grid-column: 1 / -1;
   display: flex;
   justify-content: flex-end;
-  padding-top: 8px;
+  padding-top: 12px;
   border-top: 1px solid var(--border-color);
-  margin-top: 4px;
+  margin-top: 2px;
 }
 
 .boma-generate-submit {
@@ -333,12 +362,16 @@
   background: var(--bg-secondary);
 }
 
+.dark-theme .boma-generate-section {
+  background: rgba(255, 255, 255, 0.03);
+}
+
 .dark-theme .boma-generate-form .form-input-total {
   background: rgba(255, 0, 0, 0.12);
 }
 
 @media (max-width: 900px) {
-  .boma-generate-form {
+  .boma-generate-row {
     grid-template-columns: 1fr;
   }
 

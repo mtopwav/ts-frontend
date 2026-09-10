@@ -9,13 +9,20 @@ import {
   FaMoneyBillWave,
   FaFileInvoice,
   FaPrint,
+  FaDownload,
 } from 'react-icons/fa';
 import './manager-layout.css';
 import './reports.css';
 import logo from '../../images/logo.png';
-import { getPayments } from '../../services/api';
+import { getPayments, getExpenses } from '../../services/api';
 import { formatDateTime, getCurrentDateTime } from '../../utils/dateTime';
 import { RECEIPT_PRINT_STYLES, buildReceiptBodyHtml } from '../../utils/receiptPrintHtml';
+import {
+  ensureLogoDataUrl,
+  openPrintWindowWithLogo,
+  logoImgHtml,
+  PRINT_LOGO_CSS,
+} from '../../utils/printLogo';
 import { useTranslation } from '../../utils/useTranslation';
 import { canAccessBranch } from '../../utils/branchAuth';
 import { BRANCH_GEITA } from '../../utils/branchLocations';
@@ -28,6 +35,18 @@ import { BRAND_NAME, DEFAULT_SUPPLIER, getPrintCompanyHtml, getPrintTinHtml, BRA
 
 function getTodayDateString(date = new Date()) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+/** Normalize expense/API date values to YYYY-MM-DD (handles ISO strings from MySQL). */
+function toExpenseDateOnly(value) {
+  if (value == null || value === '') return '';
+  if (typeof value === 'string') {
+    const m = value.trim().match(/^(\d{4}-\d{2}-\d{2})/);
+    if (m) return m[1];
+  }
+  const d = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(d.getTime())) return '';
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
 }
 
 function ManagerReports() {
@@ -109,20 +128,16 @@ function ManagerReports() {
   }, [navigate]);
 
   useEffect(() => {
-    const logoSrc = typeof logo === 'string' ? logo : logo?.default ? logo.default : '';
-    if (!logoSrc) return;
-    const src = logoSrc.startsWith('http')
-      ? logoSrc
-      : window.location.origin + (logoSrc.startsWith('/') ? logoSrc : '/' + logoSrc);
-    fetch(src)
-      .then((r) => r.blob())
-      .then((blob) => {
-        const reader = new FileReader();
-        reader.onloadend = () => setLogoDataUrl(reader.result);
-        reader.readAsDataURL(blob);
-      })
-      .catch(() => {});
+    let cancelled = false;
+    ensureLogoDataUrl(logo, null).then((dataUrl) => {
+      if (!cancelled && dataUrl) setLogoDataUrl(dataUrl);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, []);
+
+  const resolveLogoSrcForPrint = async () => ensureLogoDataUrl(logo, logoDataUrl);
 
   const handleLogout = async () => {
     const result = await Swal.fire({
@@ -219,20 +234,23 @@ function ManagerReports() {
 
   const paymentMethodForPrintRow = (p) => {
     const isLoan = String(p?.payment_type ?? '').trim().toLowerCase() === 'loan';
-    if (isLoan) {
-      const inRange = Number(p?.amount_received_in_range) || 0;
-      const method = String(p?.payment_method || '—').trim() || '—';
-      if (inRange > 0) return `${method} · ${formatCurrency(inRange)}`;
-      return method;
-    }
     const ch = getPaymentChannelsList(p);
+    // Sales and multi-method loans: list each channel (Cash 1,000 / Bank Transfer 500), not "Mixed".
     if (ch.length >= 2) {
       return ch.map((c) => `${c.label} ${formatCurrency(c.val)}`).join('\n');
     }
     if (ch.length === 1) {
-      return `${ch[0].label} · ${formatCurrency(ch[0].val)}`;
+      const amt = isLoan
+        ? Number(p?.amount_received_in_range) || ch[0].val
+        : ch[0].val;
+      return `${ch[0].label} · ${formatCurrency(amt)}`;
     }
     const method = String(p?.payment_method || '—').trim() || '—';
+    if (isLoan) {
+      const inRange = Number(p?.amount_received_in_range) || 0;
+      if (inRange > 0) return `${method} · ${formatCurrency(inRange)}`;
+      return method;
+    }
     const amt = Number(p?.amount_received) || 0;
     if (amt > 0) return `${method} · ${formatCurrency(amt)}`;
     return method;
@@ -404,11 +422,6 @@ function ManagerReports() {
 
     const getLoanChannelsForSummary = (p) => {
       const received = loanReceivedForPrint(p);
-
-      if (received > 0) {
-        return allocateLoanChannelAmounts(received, p.payment_method);
-      }
-
       const base = {
         cash: toN(p.cash),
         bank_transfer: toN(p.bank_transfer),
@@ -418,8 +431,32 @@ function ManagerReports() {
       };
       const channelSum =
         base.cash + base.bank_transfer + base.airtel_money + base.mpesa + base.mix_by_yas;
+      const methodLower = String(p?.payment_method || '')
+        .trim()
+        .toLowerCase();
+      const isMixedMethod = methodLower === 'mixed' || methodLower === 'loan';
+      const channelCount = [base.cash, base.bank_transfer, base.airtel_money, base.mpesa, base.mix_by_yas].filter(
+        (v) => v > 0
+      ).length;
 
-      if (received > 0 && channelSum <= 0) {
+      // Prefer stored channel split (esp. Mixed / multi-method), not a single "Mixed" bucket.
+      if (received > 0 && channelSum > 0 && (isMixedMethod || channelCount >= 2 || channelSum === received)) {
+        if (channelSum === received) {
+          return { ...base, credit: 0 };
+        }
+        // Scale lifetime channel totals to the period amount when they differ.
+        const scale = received / channelSum;
+        return {
+          cash: base.cash * scale,
+          bank_transfer: base.bank_transfer * scale,
+          airtel_money: base.airtel_money * scale,
+          mpesa: base.mpesa * scale,
+          mix_by_yas: base.mix_by_yas * scale,
+          credit: 0
+        };
+      }
+
+      if (received > 0) {
         return allocateLoanChannelAmounts(received, p.payment_method);
       }
 
@@ -463,32 +500,45 @@ function ManagerReports() {
   };
 
   const openPrintWindow = (html) => {
-    const w = window.open('', '_blank', 'width=1000,height=700');
-    if (!w) {
+    openPrintWindowWithLogo(html, {
+      onBlocked: () => {
+        Swal.fire({
+          icon: 'warning',
+          title: 'Popup Blocked',
+          text: 'Please allow popups to print the report.',
+          confirmButtonColor: colors.primary
+        });
+      }
+    });
+  };
+
+  const downloadHtmlDocument = (html, filename) => {
+    try {
+      const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (error) {
       Swal.fire({
-        icon: 'warning',
-        title: 'Popup Blocked',
-        text: 'Please allow popups to print the report.',
+        icon: 'error',
+        title: 'Error',
+        text: 'Failed to download document. Please try again.',
         confirmButtonColor: colors.primary
       });
-      return;
     }
-    w.document.open();
-    w.document.write(html);
-    w.document.close();
-    w.focus();
-    w.print();
   };
 
   /** Same table + footer as finance/cashier/reports.js when “all payment methods” is selected. */
-  const handlePrintCashierTransactionsDocument = () => {
-    const logoPath = typeof logo === 'string' ? logo : logo?.default ? logo.default : '';
-    const logoUrl = logoPath
-      ? logoPath.startsWith('http')
-        ? logoPath
-        : window.location.origin + (logoPath.startsWith('/') ? logoPath : '/' + logoPath)
-      : window.location.origin + logo;
-    const logoSrcForPrint = logoDataUrl || logoUrl;
+  const handleCashierTransactionsDocument = async (mode = 'print') => {
+    const logoSrcForPrint = await resolveLogoSrcForPrint();
+    if (logoSrcForPrint && String(logoSrcForPrint).startsWith('data:')) {
+      setLogoDataUrl(logoSrcForPrint);
+    }
 
     const dateRangeLabel = periodLabel;
 
@@ -507,6 +557,34 @@ function ManagerReports() {
     const singleDaySummaryNote = `<div class="tax-inv-footer-row"><label>Summary scope:</label> All approved transactions on ${String(
       todayDate
     ).replace(/</g, '&lt;')} (same as listed above).</div>`;
+
+    let todayExpenses = [];
+    try {
+      // Load Paid expenses for this branch, then keep today's rows (avoids SQL DATE/TZ mismatches)
+      const expensesResponse = await getExpenses(BRANCH_GEITA, { status: 'Paid' });
+      const allPaid = Array.isArray(expensesResponse?.expenses) ? expensesResponse.expenses : [];
+      todayExpenses = allPaid.filter((e) => {
+        const statusOk = String(e.status || '').trim().toLowerCase() === 'paid';
+        if (!statusOk) return false;
+        const expenseDay = toExpenseDateOnly(e.date);
+        const createdDay = toExpenseDateOnly(e.created_at);
+        return expenseDay === todayDate || createdDay === todayDate;
+      });
+    } catch (error) {
+      console.error('Error loading expenses for print:', error);
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: error.message || 'Failed to load expenses from database.',
+        confirmButtonColor: colors.primary
+      });
+      return;
+    }
+    const totalTodayExpenses = todayExpenses.reduce(
+      (sum, e) => sum + (Number(e.amount) || 0),
+      0
+    );
+    const totalTodayIncome = (Number(printSummary.totalAmount) || 0) - totalTodayExpenses;
 
     const tableHeader = `
             <thead>
@@ -561,6 +639,45 @@ function ManagerReports() {
                   <td class="tr">${formatCurrency(amountReceivedSumForPrintRow(p))}</td>
                   <td class="tr">${formatCurrency(amountRemain)}</td>
                   <td class="tl">${printableStatus}</td>
+                </tr>
+              `;
+            })
+            .join('') +
+          '</tbody>';
+
+    const expensesTableHeader = `
+            <thead>
+              <tr>
+                <th class="tc">S.No</th>
+                <th class="tl">Date</th>
+                <th class="tl">Description</th>
+                <th class="tl">Category</th>
+                <th class="tr">Amount (TZS)</th>
+                <th class="tl">Status</th>
+              </tr>
+            </thead>`;
+
+    const expensesRowsHtml =
+      todayExpenses.length === 0
+        ? '<tbody><tr><td colspan="6" style="text-align:center;padding:12px;">No expenses found</td></tr></tbody>'
+        : '<tbody>' +
+          todayExpenses
+            .map((e, idx) => {
+              const rawDesc = String(e.description || '').trim();
+              const description = rawDesc
+                ? (rawDesc.charAt(0).toUpperCase() + rawDesc.slice(1)).replace(/</g, '&lt;')
+                : '—';
+              const category = String(e.category || '—').replace(/</g, '&lt;');
+              const status = String(e.status || '—').replace(/</g, '&lt;');
+              const dateStr = e.date ? String(e.date).slice(0, 10) : '—';
+              return `
+                <tr>
+                  <td class="tc">${idx + 1}</td>
+                  <td class="tl">${dateStr}</td>
+                  <td class="tl">${description}</td>
+                  <td class="tl">${category}</td>
+                  <td class="tr">${formatCurrency(Number(e.amount) || 0)}</td>
+                  <td class="tl">${status}</td>
                 </tr>
               `;
             })
@@ -623,6 +740,12 @@ function ManagerReports() {
               margin: 24px 0;
               letter-spacing: 0.05em;
             }
+            .tax-inv-section-title {
+              font-size: 1.05rem;
+              font-weight: 700;
+              margin: 28px 0 12px 0;
+              letter-spacing: 0.02em;
+            }
             .tax-inv-table {
               width: 100%;
               border-collapse: collapse;
@@ -662,12 +785,13 @@ function ManagerReports() {
               font-size: 10px;
             }
             @media print { body { padding: 16px; } .tax-inv-logo { max-height: 52px; } }
+            ${PRINT_LOGO_CSS}
           </style>
         </head>
         <body>
           <div class="tax-inv-top">
             <div class="tax-inv-left">
-              <img src="${String(logoSrcForPrint).replace(/"/g, '&quot;')}" alt="Logo" class="tax-inv-logo" />
+              ${logoImgHtml(logoSrcForPrint)}
               ${getPrintCompanyHtml("tax-inv-company", BRAND_ADDRESS_GEITA)}
             </div>
             <div class="tax-inv-meta">
@@ -683,6 +807,12 @@ function ManagerReports() {
           <table class="tax-inv-table">
             ${tableHeader}
             ${rowsHtml}
+          </table>
+
+          <h2 class="tax-inv-section-title">Today's Expenses</h2>
+          <table class="tax-inv-table">
+            ${expensesTableHeader}
+            ${expensesRowsHtml}
           </table>
 
           <div class="tax-inv-footer">
@@ -701,23 +831,29 @@ function ManagerReports() {
             <div class="tax-inv-footer-row"><label>Loan paid by Credit (TZS):</label> ${formatCurrency(printSummary.loanPaidCreditTotal)}</div>
             <div class="tax-inv-footer-row"><label>Total Loan paid (TZS):</label> ${formatCurrency(printSummary.loanPaidTotal)}</div>
             <div class="tax-inv-footer-row"><label>Total amount received (TZS):</label> ${formatCurrency(printSummary.totalAmount)}</div>
+            <div class="tax-inv-footer-row"><label>Total today expenses (TZS):</label> ${formatCurrency(totalTodayExpenses)}</div>
+            <div class="tax-inv-footer-row"><label>Total today's income (TZS):</label> <strong>${formatCurrency(totalTodayIncome)}</strong></div>
           </div>
 
           <p class="tax-inv-disclaimer">*This is a computer generated transactions report, hence no signature is required.*</p>
         </body>
       </html>
     `;
-    openPrintWindow(html);
+    if (mode === 'download') {
+      downloadHtmlDocument(html, `geita-transactions-report-${todayDate}.html`);
+    } else {
+      openPrintWindow(html);
+    }
   };
 
-  const handlePrint = () => {
-    const logoPath = typeof logo === 'string' ? logo : logo?.default ? logo.default : '';
-    const logoUrl = logoPath
-      ? logoPath.startsWith('http')
-        ? logoPath
-        : window.location.origin + (logoPath.startsWith('/') ? logoPath : '/' + logoPath)
-      : window.location.origin + logo;
-    const logoSrcForPrint = logoDataUrl || logoUrl;
+  const handlePrintCashierTransactionsDocument = () => handleCashierTransactionsDocument('print');
+  const handleDownloadCashierTransactionsDocument = () => handleCashierTransactionsDocument('download');
+
+  const handlePrint = async () => {
+    const logoSrcForPrint = await resolveLogoSrcForPrint();
+    if (logoSrcForPrint && String(logoSrcForPrint).startsWith('data:')) {
+      setLogoDataUrl(logoSrcForPrint);
+    }
 
     const dateRangeLabel = periodLabel;
 
@@ -872,12 +1008,13 @@ function ManagerReports() {
               font-size: 10px;
             }
             @media print { body { padding: 16px; } .tax-inv-logo { max-height: 52px; } }
+            ${PRINT_LOGO_CSS}
           </style>
         </head>
         <body>
           <div class="tax-inv-top">
             <div class="tax-inv-left">
-              <img src="${String(logoSrcForPrint).replace(/"/g, '&quot;')}" alt="Logo" class="tax-inv-logo" />
+              ${logoImgHtml(logoSrcForPrint)}
               ${getPrintCompanyHtml("tax-inv-company", BRAND_ADDRESS_GEITA)}
             </div>
             <div class="tax-inv-meta">
@@ -940,7 +1077,7 @@ function ManagerReports() {
 <head>
   <meta charset="utf-8" />
   <title>Transaction receipts — ${BRAND_NAME}</title>
-  <style>${RECEIPT_PRINT_STYLES}${pageBreakStyles}</style>
+  <style>${RECEIPT_PRINT_STYLES}${PRINT_LOGO_CSS}${pageBreakStyles}</style>
 </head>
 <body>
   <p class="manager-tx-banner">${geitaLabels.transactionReportsBanner(String(periodLabel).replace(/</g, '&lt;'))} · Printed ${new Date().toLocaleString('en-GB')}</p>
@@ -1098,12 +1235,13 @@ function ManagerReports() {
     .tax-inv-customer { margin-bottom: 12px; padding: 8px 0; }
     .total-row td { font-weight: 700; background: #fafafa; }
     @media print { body { padding: 16px; } .tax-inv-logo { max-height: 52px; } }
+    ${PRINT_LOGO_CSS}
   </style>
 </head>
 <body>
   <div class="tax-inv-top">
     <div class="tax-inv-left">
-      <img src="${String(logoSrcForPrint).replace(/"/g, '&quot;')}" alt="Logo" class="tax-inv-logo" />
+      ${logoImgHtml(logoSrcForPrint)}
       ${getPrintCompanyHtml('tax-inv-company', BRAND_ADDRESS_GEITA)}
     </div>
     <div class="tax-inv-meta">
@@ -1246,16 +1384,28 @@ function ManagerReports() {
                     <h3 className="manager-report-section-title" style={{ margin: 0 }}>
                       <FaFileInvoice /> {t.transactionReports}
                     </h3>
-                    <button
-                      type="button"
-                      onClick={handlePrintCashierTransactionsDocument}
-                      className="action-btn print"
-                      style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
-                      title={t.printTransactionDocument || 'Print transaction document'}
-                    >
-                      <FaPrint />
-                      <span>{t.printTransactionDocument || 'Print transaction document'}</span>
-                    </button>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                      <button
+                        type="button"
+                        onClick={handlePrintCashierTransactionsDocument}
+                        className="action-btn print"
+                        style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+                        title={t.printTransactionDocument || 'Print transaction document'}
+                      >
+                        <FaPrint />
+                        <span>{t.printTransactionDocument || 'Print transaction document'}</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleDownloadCashierTransactionsDocument}
+                        className="action-btn download"
+                        style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+                        title={t.downloadTransactionDocument || 'Download transaction document'}
+                      >
+                        <FaDownload />
+                        <span>{t.downloadTransactionDocument || 'Download transaction document'}</span>
+                      </button>
+                    </div>
                   </div>
                   <div className="manager-report-cards">
                     <div className="manager-report-card">

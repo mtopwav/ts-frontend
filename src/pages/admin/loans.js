@@ -30,6 +30,7 @@ import {
   FaFilter,
   FaChevronDown,
   FaMapMarkerAlt,
+  FaWallet,
 } from 'react-icons/fa';
 import './dashboard.css';
 import '../boma/manager-layout.css';
@@ -1643,6 +1644,10 @@ function AdminLoans() {
           <Link to="/admin/loans" className={'nav-item' + (location.pathname === '/admin/loans' ? ' active' : '')}>
             <FaMoneyBillWave className="nav-icon" />
             <span>{t.loans}</span>
+          </Link>
+          <Link to="/admin/expenses" className={'nav-item' + (location.pathname === '/admin/expenses' ? ' active' : '')}>
+            <FaWallet className="nav-icon" />
+            <span>{t.expenses || 'Expenses'}</span>
           </Link>
           <Link to="/admin/reports" className={'nav-item' + (location.pathname === '/admin/reports' ? ' active' : '')}>
             <FaChartBar className="nav-icon" />

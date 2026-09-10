@@ -1,13 +1,18 @@
 import { colors } from '../../utils/colors';
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useResponsiveSidebar } from '../../utils/useResponsiveSidebar';
 import SidebarBackdrop from '../../components/SidebarBackdrop';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import Swal from 'sweetalert2';
 import {
+  FaChartLine,
+  FaBars,
+  FaSignOutAlt,
+  FaUser,
   FaPlus,
   FaSearch,
   FaEdit,
+  FaTrash,
   FaMoneyBillWave,
   FaCheckCircle,
   FaClock,
@@ -15,18 +20,28 @@ import {
   FaTag,
   FaAlignLeft,
   FaCoins,
+  FaTags,
+  FaBox,
+  FaShoppingCart,
+  FaUsers,
+  FaCog,
+  FaChartBar,
+  FaWallet,
+  FaMapMarkerAlt,
+  FaFilter,
+  FaChevronDown,
 } from 'react-icons/fa';
-import './manager-layout.css';
+import './dashboard.css';
 import './expenses.css';
-import { getExpenses, createExpense, updateExpense } from '../../services/api';
+import logo from '../../images/logo1.png';
+import { getExpenses, createExpense, updateExpense, deleteExpense } from '../../services/api';
 import { getCurrentDateTime } from '../../utils/dateTime';
+import ThemeToggle from '../../components/ThemeToggle';
+import LanguageSelector from '../../components/LanguageSelector';
 import { useTranslation } from '../../utils/useTranslation';
-import { canAccessBranch } from '../../utils/branchAuth';
-import { BRANCH_BOMA } from '../../utils/branchLocations';
-import { bomaLabels } from './bomaLabels';
-import BomaSidebar from './components/BomaSidebar';
-import BomaPageHeader from './components/BomaPageHeader';
+import { BRANCH_BOMA, BRANCH_GEITA, BRANCH_LOCATIONS } from '../../utils/branchLocations';
 import { PageLoader, InlineLoader } from '../../components/LoadingSpinner';
+import { BRAND_NAME } from '../../utils/brand';
 
 const EXPENSE_CATEGORIES = [
   'Transport',
@@ -44,7 +59,6 @@ function todayIso() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-/** Format amount as whole number with thousands commas (e.g. 3000 → 3,000). */
 function formatAmountWithCommas(value) {
   if (value === null || value === undefined || value === '') return '';
   const digits = String(value).replace(/\D/g, '');
@@ -64,11 +78,13 @@ function emptyForm() {
     category: 'Other',
     amount: '',
     status: 'Pending',
+    location: BRANCH_BOMA,
   };
 }
 
-function ManagerExpenses() {
+function AdminExpenses() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { t } = useTranslation();
   const [user, setUser] = useState(null);
   const { sidebarOpen, isMobile, toggleSidebar, closeSidebar } = useResponsiveSidebar();
@@ -77,6 +93,9 @@ function ManagerExpenses() {
   const [expenses, setExpenses] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
+  const [branchFilter, setBranchFilter] = useState('All');
+  const [openFilter, setOpenFilter] = useState(null);
+  const filtersRef = useRef(null);
   const [currentDateTime, setCurrentDateTime] = useState(getCurrentDateTime());
   const [showModal, setShowModal] = useState(false);
   const [editingExpense, setEditingExpense] = useState(null);
@@ -85,24 +104,19 @@ function ManagerExpenses() {
 
   useEffect(() => {
     const userData = localStorage.getItem('user') || sessionStorage.getItem('user');
-    if (userData) {
-      try {
-        const parsedUser = JSON.parse(userData);
-        setUser(parsedUser);
-        if (!canAccessBranch(parsedUser, 'boma')) {
-          setLoading(false);
-          navigate('/login');
-          return;
-        }
-      } catch (error) {
-        console.error('Error parsing user data:', error);
-        setLoading(false);
-        setTimeout(() => navigate('/login'), 2000);
+    if (!userData) {
+      navigate('/login');
+      return;
+    }
+    try {
+      const parsed = JSON.parse(userData);
+      setUser(parsed);
+      if (parsed.userType !== 'admin') {
+        navigate('/login');
         return;
       }
-    } else {
-      setLoading(false);
-      setTimeout(() => navigate('/login'), 1000);
+    } catch {
+      navigate('/login');
       return;
     }
     setLoading(false);
@@ -111,7 +125,7 @@ function ManagerExpenses() {
   const loadExpenses = async () => {
     setDataLoading(true);
     try {
-      const response = await getExpenses(BRANCH_BOMA);
+      const response = await getExpenses();
       if (response.success && Array.isArray(response.expenses)) {
         setExpenses(response.expenses);
       } else {
@@ -137,6 +151,16 @@ function ManagerExpenses() {
     return () => clearInterval(dateTimeInterval);
   }, []);
 
+  useEffect(() => {
+    const onPointerDown = (event) => {
+      if (filtersRef.current && !filtersRef.current.contains(event.target)) {
+        setOpenFilter(null);
+      }
+    };
+    document.addEventListener('mousedown', onPointerDown);
+    return () => document.removeEventListener('mousedown', onPointerDown);
+  }, []);
+
   const formatPrice = (price) => {
     const num = parseFloat(price);
     return Number.isNaN(num)
@@ -159,18 +183,23 @@ function ManagerExpenses() {
     const q = searchTerm.trim().toLowerCase();
     return expenses.filter((e) => {
       if (statusFilter !== 'All' && String(e.status || '') !== statusFilter) return false;
+      if (branchFilter !== 'All') {
+        const loc = String(e.location || '').trim().toLowerCase();
+        if (loc !== String(branchFilter).trim().toLowerCase()) return false;
+      }
       if (!q) return true;
       return (
         String(e.description || '').toLowerCase().includes(q) ||
         String(e.category || '').toLowerCase().includes(q) ||
-        String(e.status || '').toLowerCase().includes(q)
+        String(e.status || '').toLowerCase().includes(q) ||
+        String(e.location || '').toLowerCase().includes(q)
       );
     });
-  }, [expenses, searchTerm, statusFilter]);
+  }, [expenses, searchTerm, statusFilter, branchFilter]);
 
   const totalAmount = filteredExpenses.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
-  const paidCount = expenses.filter((e) => String(e.status) === 'Paid').length;
-  const pendingCount = expenses.filter((e) => String(e.status) !== 'Paid').length;
+  const paidCount = filteredExpenses.filter((e) => String(e.status) === 'Paid').length;
+  const pendingCount = filteredExpenses.filter((e) => String(e.status) !== 'Paid').length;
 
   if (loading) {
     return <PageLoader message={t.loading || 'Loading...'} />;
@@ -202,14 +231,60 @@ function ManagerExpenses() {
 
   const openEditModal = (expense) => {
     setEditingExpense(expense);
+    const loc = String(expense.location || '').trim();
     setFormData({
       date: expense.date ? String(expense.date).slice(0, 10) : todayIso(),
       description: expense.description || '',
       category: expense.category || 'Other',
       amount: formatAmountWithCommas(Math.round(Number(expense.amount) || 0)),
       status: expense.status === 'Paid' ? 'Paid' : 'Pending',
+      location: BRANCH_LOCATIONS.includes(loc) ? loc : BRANCH_BOMA,
     });
     setShowModal(true);
+  };
+
+  const handleDelete = async (expense) => {
+    const desc = String(expense?.description || '').trim();
+    const label = desc
+      ? desc.charAt(0).toUpperCase() + desc.slice(1)
+      : 'this expense';
+    const result = await Swal.fire({
+      title: t.areYouSure || 'Are you sure?',
+      text: `Do you want to delete "${label}"? This action cannot be undone.`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: colors.error,
+      cancelButtonColor: colors.textMuted,
+      confirmButtonText: t.yesDelete || 'Yes, delete it!',
+      cancelButtonText: t.cancel || 'Cancel',
+      reverseButtons: true,
+    });
+
+    if (!result.isConfirmed) return;
+
+    try {
+      const response = await deleteExpense(expense.id);
+      if (!response?.success) {
+        throw new Error(response?.message || 'Failed to delete expense');
+      }
+      await loadExpenses();
+      Swal.fire({
+        icon: 'success',
+        title: t.deleted || 'Deleted!',
+        text: t.expenseDeleted || 'Expense has been deleted.',
+        confirmButtonColor: colors.primary,
+        timer: 1800,
+        showConfirmButton: false,
+      });
+    } catch (error) {
+      console.error('Error deleting expense:', error);
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: error.message || 'Failed to delete expense.',
+        confirmButtonColor: colors.primary,
+      });
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -217,12 +292,22 @@ function ManagerExpenses() {
     const description = String(formData.description || '').trim();
     const category = String(formData.category || '').trim();
     const amountNum = parseAmountInput(formData.amount);
+    const branchLocation = String(formData.location || '').trim();
 
     if (!description || !category) {
       Swal.fire({
         icon: 'error',
         title: 'Validation Error',
         text: 'Description and category are required.',
+        confirmButtonColor: colors.primary,
+      });
+      return;
+    }
+    if (!BRANCH_LOCATIONS.includes(branchLocation)) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Validation Error',
+        text: 'Please select a branch location.',
         confirmButtonColor: colors.primary,
       });
       return;
@@ -245,7 +330,7 @@ function ManagerExpenses() {
         category,
         amount: amountNum,
         status: formData.status === 'Paid' ? 'Paid' : 'Pending',
-        location: BRANCH_BOMA,
+        location: branchLocation,
         added_by: user?.id || null,
       };
 
@@ -284,40 +369,202 @@ function ManagerExpenses() {
     }
   };
 
-  return (
-    <div className="payments-container boma-portal">
-      {isMobile && sidebarOpen ? <SidebarBackdrop onClose={closeSidebar} /> : null}
-      <BomaSidebar sidebarOpen={sidebarOpen} isMobile={isMobile} onNavClick={closeSidebar} />
-      <div className="main-content">
-        <BomaPageHeader
-          title={bomaLabels.pageTitles.expenses || t.expenses || 'Expenses'}
-          user={user}
-          currentDateTime={currentDateTime}
-          onToggleSidebar={toggleSidebar}
-          onLogout={handleLogout}
-        />
+  const navClass = (path) =>
+    'nav-item' + (location.pathname === path ? ' active' : '');
 
-        <div className="payments-content manager-expenses-page">
-          <div className="manager-expenses-action-bar action-bar">
-            <div className="search-box">
-              <FaSearch className="search-icon" aria-hidden />
-              <input
-                type="text"
-                className="search-input"
-                placeholder={t.searchExpenses || 'Search expenses...'}
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
+  const statusFilterOptions = [
+    { value: 'All', label: t.allStatus || 'All Status', hint: 'Pending & paid expenses' },
+    { value: 'Pending', label: t.pendingExpenses || 'Pending', hint: 'Awaiting payment' },
+    { value: 'Paid', label: t.paidExpenses || 'Paid', hint: 'Paid expenses only' },
+  ];
+
+  const branchFilterOptions = [
+    { value: 'All', label: t.allBranches || 'All Branches', hint: 'Boma & Geita' },
+    { value: BRANCH_BOMA, label: t.bomaBranch || 'Boma Branch', hint: 'Boma expenses only' },
+    { value: BRANCH_GEITA, label: t.geitaBranch || 'Geita Branch', hint: 'Geita expenses only' },
+  ];
+
+  const activeStatusOption =
+    statusFilterOptions.find((opt) => opt.value === statusFilter) || statusFilterOptions[0];
+  const activeBranchOption =
+    branchFilterOptions.find((opt) => opt.value === branchFilter) || branchFilterOptions[0];
+
+  const renderFilterDropdown = ({
+    id,
+    keyName,
+    activeOption,
+    options,
+    isActive,
+    onSelect,
+    icon,
+  }) => (
+    <div
+      className={`expense-filter-dropdown${isActive ? ' is-active' : ''}${
+        openFilter === keyName ? ' is-open' : ''
+      }`}
+    >
+      <button
+        type="button"
+        id={id}
+        className="expense-filter-btn"
+        onClick={() => setOpenFilter((prev) => (prev === keyName ? null : keyName))}
+        aria-haspopup="listbox"
+        aria-expanded={openFilter === keyName}
+      >
+        <FaFilter className="expense-filter-icon" aria-hidden="true" />
+        <span className="expense-filter-label">{activeOption.label}</span>
+        <FaChevronDown className="expense-filter-chevron" aria-hidden="true" />
+      </button>
+      {openFilter === keyName && (
+        <ul className="expense-filter-menu" role="listbox">
+          {options.map((opt) => (
+            <li key={opt.value} role="presentation">
+              <button
+                type="button"
+                role="option"
+                aria-selected={activeOption.value === opt.value}
+                className={`expense-filter-option${
+                  activeOption.value === opt.value ? ' is-selected' : ''
+                }`}
+                onClick={() => {
+                  onSelect(opt.value);
+                  setOpenFilter(null);
+                }}
+              >
+                {icon}
+                <span className="expense-filter-option-text">
+                  <span className="expense-filter-option-label">{opt.label}</span>
+                  <span className="expense-filter-option-hint">{opt.hint}</span>
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+
+  return (
+    <div className="finance-dashboard-container admin-expenses-page">
+      {isMobile && sidebarOpen ? <SidebarBackdrop onClose={closeSidebar} /> : null}
+      <aside className={`sidebar ${sidebarOpen ? 'open' : 'closed'}`}>
+        <div className="sidebar-header">
+          <img src={logo} alt="Logo" className="sidebar-logo" />
+          <span className="sidebar-title">{BRAND_NAME}</span>
+        </div>
+        <nav className="sidebar-nav" onClick={isMobile ? closeSidebar : undefined}>
+          <Link to="/admin/dashboard" className={navClass('/admin/dashboard')}>
+            <FaChartLine className="nav-icon" />
+            <span>{t.dashboard}</span>
+          </Link>
+          <Link to="/admin/categories-brands" className={navClass('/admin/categories-brands')}>
+            <FaTags className="nav-icon" />
+            <span>{t.categoriesBrands}</span>
+          </Link>
+          <Link to="/admin/spareparts" className={navClass('/admin/spareparts')}>
+            <FaBox className="nav-icon" />
+            <span>{t.spareParts}</span>
+          </Link>
+          <Link to="/admin/sales" className={navClass('/admin/sales')}>
+            <FaShoppingCart className="nav-icon" />
+            <span>{t.sales}</span>
+          </Link>
+          <Link to="/admin/employees" className={navClass('/admin/employees')}>
+            <FaUsers className="nav-icon" />
+            <span>{t.employees}</span>
+          </Link>
+          <Link to="/admin/transactions" className={navClass('/admin/transactions')}>
+            <FaCalendarAlt className="nav-icon" />
+            <span>{t.transactions}</span>
+          </Link>
+          <Link to="/admin/loans" className={navClass('/admin/loans')}>
+            <FaMoneyBillWave className="nav-icon" />
+            <span>{t.loans}</span>
+          </Link>
+          <Link to="/admin/expenses" className={navClass('/admin/expenses')}>
+            <FaWallet className="nav-icon" />
+            <span>{t.expenses || 'Expenses'}</span>
+          </Link>
+          <Link to="/admin/reports" className={navClass('/admin/reports')}>
+            <FaChartBar className="nav-icon" />
+            <span>{t.reports}</span>
+          </Link>
+          <Link to="/admin/settings" className={navClass('/admin/settings')}>
+            <FaCog className="nav-icon" />
+            <span>{t.settings}</span>
+          </Link>
+        </nav>
+      </aside>
+
+      <div className="main-content">
+        <header className="finance-header">
+          <div className="header-left">
+            <button type="button" className="menu-toggle" onClick={toggleSidebar}>
+              <FaBars />
+            </button>
+            <h1 className="page-title">{t.expenses || 'Expenses'}</h1>
+          </div>
+          <div className="header-right">
+            <div style={{ marginRight: '15px' }}>
+              <LanguageSelector />
             </div>
-            <select
-              className="status-filter"
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
+            <div
+              className="date-time-display"
+              style={{
+                marginRight: '20px',
+                fontSize: '14px',
+                color: '#666',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '5px',
+              }}
             >
-              <option value="All">{t.filter || 'Filter'}: All</option>
-              <option value="Pending">{t.pendingExpenses || 'Pending'}</option>
-              <option value="Paid">{t.paidExpenses || 'Paid'}</option>
-            </select>
+              <FaCalendarAlt style={{ fontSize: '16px' }} />
+              <span>{currentDateTime}</span>
+            </div>
+            <ThemeToggle />
+            <div className="user-menu">
+              <FaUser className="user-icon" />
+              <span className="user-name">{user?.username || user?.name || 'Admin'}</span>
+              <button type="button" className="logout-btn" onClick={handleLogout} title={t.logout || 'Logout'}>
+                <FaSignOutAlt />
+              </button>
+            </div>
+          </div>
+        </header>
+
+        <div className="payments-content manager-expenses-page" style={{ padding: '20px' }}>
+          <div className="manager-expenses-action-bar action-bar admin-expenses-action-bar">
+            <div className="action-bar-search-group" ref={filtersRef}>
+              <div className="search-box">
+                <FaSearch className="search-icon" aria-hidden />
+                <input
+                  type="text"
+                  className="search-input"
+                  placeholder={t.searchExpenses || 'Search expenses...'}
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
+              {renderFilterDropdown({
+                id: 'admin-expenses-branch-filter',
+                keyName: 'branch',
+                activeOption: activeBranchOption,
+                options: branchFilterOptions,
+                isActive: branchFilter !== 'All',
+                onSelect: setBranchFilter,
+                icon: <FaMapMarkerAlt className="expense-filter-option-icon" aria-hidden="true" />,
+              })}
+              {renderFilterDropdown({
+                id: 'admin-expenses-status-filter',
+                keyName: 'status',
+                activeOption: activeStatusOption,
+                options: statusFilterOptions,
+                isActive: statusFilter !== 'All',
+                onSelect: setStatusFilter,
+                icon: <FaCheckCircle className="expense-filter-option-icon" aria-hidden="true" />,
+              })}
+            </div>
             <button type="button" className="action-btn add" onClick={openAddModal}>
               <FaPlus aria-hidden /> {t.addExpense || 'Add Expense'}
             </button>
@@ -342,6 +589,12 @@ function ManagerExpenses() {
                 <p className="stat-value">{pendingCount}</p>
               </div>
             </div>
+            <div className="stat-card">
+              <div className="stat-info">
+                <h3>{t.records || 'Records'}</h3>
+                <p className="stat-value">{filteredExpenses.length}</p>
+              </div>
+            </div>
           </div>
 
           <section className="manager-expenses-section">
@@ -354,6 +607,7 @@ function ManagerExpenses() {
                   <tr>
                     <th>S.No</th>
                     <th>{t.expenseDate || 'Date'}</th>
+                    <th>{t.branch || 'Branch'}</th>
                     <th>{t.expenseDescription || 'Description'}</th>
                     <th>{t.expenseCategory || 'Category'}</th>
                     <th>{t.expenseAmount || 'Amount'} (TZS)</th>
@@ -364,13 +618,13 @@ function ManagerExpenses() {
                 <tbody>
                   {dataLoading ? (
                     <tr>
-                      <td colSpan="7" className="no-data loading-cell">
+                      <td colSpan="8" className="no-data loading-cell">
                         <InlineLoader message={t.loadingExpenses || 'Loading expenses...'} size="md" />
                       </td>
                     </tr>
                   ) : filteredExpenses.length === 0 ? (
                     <tr>
-                      <td colSpan="7" className="no-data">
+                      <td colSpan="8" className="no-data">
                         {t.noExpensesFound || 'No expenses found'}
                       </td>
                     </tr>
@@ -381,6 +635,7 @@ function ManagerExpenses() {
                         <tr key={expense.id}>
                           <td>{index + 1}</td>
                           <td>{formatDate(expense.date)}</td>
+                          <td>{expense.location || '—'}</td>
                           <td>
                             {expense.description
                               ? String(expense.description).charAt(0).toUpperCase() +
@@ -405,6 +660,14 @@ function ManagerExpenses() {
                               >
                                 <FaEdit />
                               </button>
+                              <button
+                                type="button"
+                                className="action-btn delete"
+                                title={t.delete || 'Delete'}
+                                onClick={() => handleDelete(expense)}
+                              >
+                                <FaTrash />
+                              </button>
                             </div>
                           </td>
                         </tr>
@@ -425,7 +688,7 @@ function ManagerExpenses() {
             onClick={(e) => e.stopPropagation()}
             role="dialog"
             aria-modal="true"
-            aria-labelledby="boma-expense-modal-title"
+            aria-labelledby="admin-expense-modal-title"
           >
             <div className="manager-expense-modal-header">
               <div className="manager-expense-modal-title">
@@ -433,15 +696,15 @@ function ManagerExpenses() {
                   {editingExpense ? <FaEdit /> : <FaMoneyBillWave />}
                 </span>
                 <div>
-                  <h3 id="boma-expense-modal-title">
+                  <h3 id="admin-expense-modal-title">
                     {editingExpense
                       ? t.editExpense || 'Edit Expense'
                       : t.addExpense || 'Add Expense'}
                   </h3>
                   <p className="manager-expense-modal-subtitle">
                     {editingExpense
-                      ? 'Update expense details for Boma Branch'
-                      : 'Record a new expense for Boma Branch · date is today only'}
+                      ? 'Update expense details for any branch'
+                      : 'Record a new expense · date is today only'}
                   </p>
                 </div>
               </div>
@@ -460,12 +723,12 @@ function ManagerExpenses() {
               <div className="manager-expense-form-body">
                 <div className="manager-expense-form-row">
                   <div className="manager-expense-field">
-                    <label htmlFor="boma-expense-date">
+                    <label htmlFor="admin-expense-date">
                       <FaCalendarAlt aria-hidden /> {t.expenseDate || 'Expense Date'} *
                     </label>
                     <div className={`manager-expense-date-wrap${!editingExpense ? ' is-locked' : ''}`}>
                       <input
-                        id="boma-expense-date"
+                        id="admin-expense-date"
                         type="date"
                         required
                         className="manager-expense-input"
@@ -486,11 +749,32 @@ function ManagerExpenses() {
                   </div>
 
                   <div className="manager-expense-field">
-                    <label htmlFor="boma-expense-category">
+                    <label htmlFor="admin-expense-location">
+                      <FaMapMarkerAlt aria-hidden /> {t.branch || 'Branch'} *
+                    </label>
+                    <select
+                      id="admin-expense-location"
+                      required
+                      className="manager-expense-input"
+                      value={formData.location}
+                      onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                    >
+                      {BRANCH_LOCATIONS.map((loc) => (
+                        <option key={loc} value={loc}>
+                          {loc}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="manager-expense-form-row">
+                  <div className="manager-expense-field">
+                    <label htmlFor="admin-expense-category">
                       <FaTag aria-hidden /> {t.expenseCategory || 'Category'} *
                     </label>
                     <select
-                      id="boma-expense-category"
+                      id="admin-expense-category"
                       required
                       className="manager-expense-input"
                       value={formData.category}
@@ -503,32 +787,15 @@ function ManagerExpenses() {
                       ))}
                     </select>
                   </div>
-                </div>
 
-                <div className="manager-expense-field">
-                  <label htmlFor="boma-expense-description">
-                    <FaAlignLeft aria-hidden /> {t.expenseDescription || 'Description'} *
-                  </label>
-                  <textarea
-                    id="boma-expense-description"
-                    required
-                    className="manager-expense-input manager-expense-textarea"
-                    value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    placeholder="e.g. Office supplies, fuel for delivery..."
-                    rows={3}
-                  />
-                </div>
-
-                <div className="manager-expense-form-row">
                   <div className="manager-expense-field">
-                    <label htmlFor="boma-expense-amount">
+                    <label htmlFor="admin-expense-amount">
                       <FaCoins aria-hidden /> {t.expenseAmount || 'Amount'} *
                     </label>
                     <div className="manager-expense-amount-wrap">
                       <span className="manager-expense-currency">TZS</span>
                       <input
-                        id="boma-expense-amount"
+                        id="admin-expense-amount"
                         type="text"
                         inputMode="numeric"
                         required
@@ -544,43 +811,58 @@ function ManagerExpenses() {
                       />
                     </div>
                   </div>
+                </div>
 
-                  <div className="manager-expense-field">
-                    <label htmlFor="boma-expense-status">
-                      <FaCheckCircle aria-hidden /> {t.status || 'Status'}
-                    </label>
-                    <div className="manager-expense-status-options" role="group">
-                      <button
-                        type="button"
-                        className={`manager-expense-status-chip pending${
-                          formData.status !== 'Paid' ? ' is-active' : ''
-                        }`}
-                        onClick={() => setFormData({ ...formData, status: 'Pending' })}
-                      >
-                        <FaClock aria-hidden /> {t.pendingExpenses || 'Pending'}
-                      </button>
-                      <button
-                        type="button"
-                        className={`manager-expense-status-chip paid${
-                          formData.status === 'Paid' ? ' is-active' : ''
-                        }`}
-                        onClick={() => setFormData({ ...formData, status: 'Paid' })}
-                      >
-                        <FaCheckCircle aria-hidden /> {t.paidExpenses || 'Paid'}
-                      </button>
-                    </div>
-                    <select
-                      id="boma-expense-status"
-                      className="sr-only"
-                      value={formData.status}
-                      onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                      tabIndex={-1}
-                      aria-hidden="true"
+                <div className="manager-expense-field">
+                  <label htmlFor="admin-expense-description">
+                    <FaAlignLeft aria-hidden /> {t.expenseDescription || 'Description'} *
+                  </label>
+                  <textarea
+                    id="admin-expense-description"
+                    required
+                    className="manager-expense-input manager-expense-textarea"
+                    value={formData.description}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    placeholder="e.g. Office supplies, fuel for delivery..."
+                    rows={3}
+                  />
+                </div>
+
+                <div className="manager-expense-field">
+                  <label htmlFor="admin-expense-status">
+                    <FaCheckCircle aria-hidden /> {t.status || 'Status'}
+                  </label>
+                  <div className="manager-expense-status-options" role="group">
+                    <button
+                      type="button"
+                      className={`manager-expense-status-chip pending${
+                        formData.status !== 'Paid' ? ' is-active' : ''
+                      }`}
+                      onClick={() => setFormData({ ...formData, status: 'Pending' })}
                     >
-                      <option value="Pending">{t.pendingExpenses || 'Pending'}</option>
-                      <option value="Paid">{t.paidExpenses || 'Paid'}</option>
-                    </select>
+                      <FaClock aria-hidden /> {t.pendingExpenses || 'Pending'}
+                    </button>
+                    <button
+                      type="button"
+                      className={`manager-expense-status-chip paid${
+                        formData.status === 'Paid' ? ' is-active' : ''
+                      }`}
+                      onClick={() => setFormData({ ...formData, status: 'Paid' })}
+                    >
+                      <FaCheckCircle aria-hidden /> {t.paidExpenses || 'Paid'}
+                    </button>
                   </div>
+                  <select
+                    id="admin-expense-status"
+                    className="sr-only"
+                    value={formData.status}
+                    onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                    tabIndex={-1}
+                    aria-hidden="true"
+                  >
+                    <option value="Pending">{t.pendingExpenses || 'Pending'}</option>
+                    <option value="Paid">{t.paidExpenses || 'Paid'}</option>
+                  </select>
                 </div>
               </div>
 
@@ -609,4 +891,4 @@ function ManagerExpenses() {
   );
 }
 
-export default ManagerExpenses;
+export default AdminExpenses;

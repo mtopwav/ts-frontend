@@ -11,6 +11,10 @@ import {
   FaMoneyBillWave,
   FaCheckCircle,
   FaClock,
+  FaCalendarAlt,
+  FaTag,
+  FaAlignLeft,
+  FaCoins,
 } from 'react-icons/fa';
 import './manager-layout.css';
 import './expenses.css';
@@ -38,6 +42,19 @@ const EXPENSE_CATEGORIES = [
 function todayIso() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+/** Format amount as whole number with thousands commas (e.g. 3000 → 3,000). */
+function formatAmountWithCommas(value) {
+  if (value === null || value === undefined || value === '') return '';
+  const digits = String(value).replace(/\D/g, '');
+  if (!digits) return '';
+  return digits.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+}
+
+function parseAmountInput(value) {
+  if (value == null || value === '') return NaN;
+  return parseInt(String(value).replace(/,/g, ''), 10);
 }
 
 function emptyForm() {
@@ -189,7 +206,7 @@ function ManagerExpenses() {
       date: expense.date ? String(expense.date).slice(0, 10) : todayIso(),
       description: expense.description || '',
       category: expense.category || 'Other',
-      amount: expense.amount != null ? String(expense.amount) : '',
+      amount: formatAmountWithCommas(Math.round(Number(expense.amount) || 0)),
       status: expense.status === 'Paid' ? 'Paid' : 'Pending',
     });
     setShowModal(true);
@@ -199,7 +216,7 @@ function ManagerExpenses() {
     e.preventDefault();
     const description = String(formData.description || '').trim();
     const category = String(formData.category || '').trim();
-    const amountNum = parseFloat(String(formData.amount).replace(/,/g, ''));
+    const amountNum = parseAmountInput(formData.amount);
 
     if (!description || !category) {
       Swal.fire({
@@ -210,11 +227,11 @@ function ManagerExpenses() {
       });
       return;
     }
-    if (Number.isNaN(amountNum) || amountNum <= 0) {
+    if (!Number.isFinite(amountNum) || amountNum <= 0) {
       Swal.fire({
         icon: 'error',
         title: 'Validation Error',
-        text: 'Amount must be a positive number.',
+        text: 'Amount must be a positive whole number.',
         confirmButtonColor: colors.primary,
       });
       return;
@@ -364,7 +381,12 @@ function ManagerExpenses() {
                         <tr key={expense.id}>
                           <td>{index + 1}</td>
                           <td>{formatDate(expense.date)}</td>
-                          <td>{expense.description || '—'}</td>
+                          <td>
+                            {expense.description
+                              ? String(expense.description).charAt(0).toUpperCase() +
+                                String(expense.description).slice(1)
+                              : '—'}
+                          </td>
                           <td>{expense.category || '—'}</td>
                           <td>{formatPrice(expense.amount)}</td>
                           <td>
@@ -398,110 +420,185 @@ function ManagerExpenses() {
 
       {showModal && (
         <div className="manager-modal-overlay" onClick={() => !saving && setShowModal(false)}>
-          <div className="manager-modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="manager-modal-header">
-              <h3>
-                {editingExpense
-                  ? t.editExpense || 'Edit Expense'
-                  : t.addExpense || 'Add Expense'}
-              </h3>
+          <div
+            className="manager-modal-content manager-expense-modal"
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="geita-expense-modal-title"
+          >
+            <div className="manager-expense-modal-header">
+              <div className="manager-expense-modal-title">
+                <span className="manager-expense-modal-icon" aria-hidden="true">
+                  {editingExpense ? <FaEdit /> : <FaMoneyBillWave />}
+                </span>
+                <div>
+                  <h3 id="geita-expense-modal-title">
+                    {editingExpense
+                      ? t.editExpense || 'Edit Expense'
+                      : t.addExpense || 'Add Expense'}
+                  </h3>
+                  <p className="manager-expense-modal-subtitle">
+                    {editingExpense
+                      ? 'Update expense details for Geita Branch'
+                      : 'Record a new expense for Geita Branch · date is today only'}
+                  </p>
+                </div>
+              </div>
               <button
                 type="button"
                 className="manager-modal-close"
                 onClick={() => !saving && setShowModal(false)}
                 disabled={saving}
+                aria-label={t.close || 'Close'}
               >
                 ×
               </button>
             </div>
+
             <form onSubmit={handleSubmit} className="manager-expense-form">
-              <div className="form-row">
-                <div className="form-field">
-                  <label htmlFor="geita-expense-date">{t.expenseDate || 'Expense Date'} *</label>
-                  <input
-                    id="geita-expense-date"
-                    type="date"
+              <div className="manager-expense-form-body">
+                <div className="manager-expense-form-row">
+                  <div className="manager-expense-field">
+                    <label htmlFor="geita-expense-date">
+                      <FaCalendarAlt aria-hidden /> {t.expenseDate || 'Expense Date'} *
+                    </label>
+                    <div className={`manager-expense-date-wrap${!editingExpense ? ' is-locked' : ''}`}>
+                      <input
+                        id="geita-expense-date"
+                        type="date"
+                        required
+                        className="manager-expense-input"
+                        value={editingExpense ? formData.date : todayIso()}
+                        min={!editingExpense ? todayIso() : undefined}
+                        max={!editingExpense ? todayIso() : undefined}
+                        readOnly={!editingExpense}
+                        onChange={(e) => {
+                          if (editingExpense) {
+                            setFormData({ ...formData, date: e.target.value });
+                          }
+                        }}
+                      />
+                      {!editingExpense && (
+                        <span className="manager-expense-date-hint">Today only</span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="manager-expense-field">
+                    <label htmlFor="geita-expense-category">
+                      <FaTag aria-hidden /> {t.expenseCategory || 'Category'} *
+                    </label>
+                    <select
+                      id="geita-expense-category"
+                      required
+                      className="manager-expense-input"
+                      value={formData.category}
+                      onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                    >
+                      {EXPENSE_CATEGORIES.map((c) => (
+                        <option key={c} value={c}>
+                          {c}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="manager-expense-field">
+                  <label htmlFor="geita-expense-description">
+                    <FaAlignLeft aria-hidden /> {t.expenseDescription || 'Description'} *
+                  </label>
+                  <textarea
+                    id="geita-expense-description"
                     required
-                    value={editingExpense ? formData.date : todayIso()}
-                    min={!editingExpense ? todayIso() : undefined}
-                    max={!editingExpense ? todayIso() : undefined}
-                    readOnly={!editingExpense}
-                    onChange={(e) => {
-                      if (editingExpense) {
-                        setFormData({ ...formData, date: e.target.value });
-                      }
-                    }}
+                    className="manager-expense-input manager-expense-textarea"
+                    value={formData.description}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    placeholder="e.g. Office supplies, fuel for delivery..."
+                    rows={3}
                   />
                 </div>
-                <div className="form-field">
-                  <label htmlFor="geita-expense-category">{t.expenseCategory || 'Category'} *</label>
-                  <select
-                    id="geita-expense-category"
-                    required
-                    value={formData.category}
-                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                  >
-                    {EXPENSE_CATEGORIES.map((c) => (
-                      <option key={c} value={c}>
-                        {c}
-                      </option>
-                    ))}
-                  </select>
+
+                <div className="manager-expense-form-row">
+                  <div className="manager-expense-field">
+                    <label htmlFor="geita-expense-amount">
+                      <FaCoins aria-hidden /> {t.expenseAmount || 'Amount'} *
+                    </label>
+                    <div className="manager-expense-amount-wrap">
+                      <span className="manager-expense-currency">TZS</span>
+                      <input
+                        id="geita-expense-amount"
+                        type="text"
+                        inputMode="numeric"
+                        required
+                        className="manager-expense-input manager-expense-amount-input"
+                        value={formData.amount}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            amount: formatAmountWithCommas(e.target.value),
+                          })
+                        }
+                        placeholder="0"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="manager-expense-field">
+                    <label htmlFor="geita-expense-status">
+                      <FaCheckCircle aria-hidden /> {t.status || 'Status'}
+                    </label>
+                    <div className="manager-expense-status-options" role="group">
+                      <button
+                        type="button"
+                        className={`manager-expense-status-chip pending${
+                          formData.status !== 'Paid' ? ' is-active' : ''
+                        }`}
+                        onClick={() => setFormData({ ...formData, status: 'Pending' })}
+                      >
+                        <FaClock aria-hidden /> {t.pendingExpenses || 'Pending'}
+                      </button>
+                      <button
+                        type="button"
+                        className={`manager-expense-status-chip paid${
+                          formData.status === 'Paid' ? ' is-active' : ''
+                        }`}
+                        onClick={() => setFormData({ ...formData, status: 'Paid' })}
+                      >
+                        <FaCheckCircle aria-hidden /> {t.paidExpenses || 'Paid'}
+                      </button>
+                    </div>
+                    <select
+                      id="geita-expense-status"
+                      className="sr-only"
+                      value={formData.status}
+                      onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                      tabIndex={-1}
+                      aria-hidden="true"
+                    >
+                      <option value="Pending">{t.pendingExpenses || 'Pending'}</option>
+                      <option value="Paid">{t.paidExpenses || 'Paid'}</option>
+                    </select>
+                  </div>
                 </div>
               </div>
-              <div className="form-field">
-                <label htmlFor="geita-expense-description">
-                  {t.expenseDescription || 'Description'} *
-                </label>
-                <textarea
-                  id="geita-expense-description"
-                  required
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  placeholder={t.expenseDescription || 'Description'}
-                />
-              </div>
-              <div className="form-row">
-                <div className="form-field">
-                  <label htmlFor="geita-expense-amount">{t.expenseAmount || 'Amount'} (TZS) *</label>
-                  <input
-                    id="geita-expense-amount"
-                    type="text"
-                    inputMode="decimal"
-                    required
-                    value={formData.amount}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        amount: e.target.value.replace(/[^\d.]/g, ''),
-                      })
-                    }
-                    placeholder="0"
-                  />
-                </div>
-                <div className="form-field">
-                  <label htmlFor="geita-expense-status">{t.status || 'Status'}</label>
-                  <select
-                    id="geita-expense-status"
-                    value={formData.status}
-                    onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                  >
-                    <option value="Pending">{t.pendingExpenses || 'Pending'}</option>
-                    <option value="Paid">{t.paidExpenses || 'Paid'}</option>
-                  </select>
-                </div>
-              </div>
-              <div className="manager-modal-actions">
+
+              <div className="manager-expense-modal-footer">
                 <button
                   type="button"
-                  className="action-btn cancel"
+                  className="manager-expense-btn secondary"
                   onClick={() => setShowModal(false)}
                   disabled={saving}
                 >
                   {t.cancel || 'Cancel'}
                 </button>
-                <button type="submit" className="action-btn save" disabled={saving}>
-                  {saving ? t.saving || 'Saving...' : t.save || 'Save'}
+                <button type="submit" className="manager-expense-btn primary" disabled={saving}>
+                  {saving
+                    ? t.saving || 'Saving...'
+                    : editingExpense
+                      ? t.save || 'Save'
+                      : t.addExpense || 'Add Expense'}
                 </button>
               </div>
             </form>
