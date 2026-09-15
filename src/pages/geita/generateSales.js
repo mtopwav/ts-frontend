@@ -1,5 +1,5 @@
 import { colors } from '../../utils/colors';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useResponsiveSidebar } from '../../utils/useResponsiveSidebar';
 import SidebarBackdrop from '../../components/SidebarBackdrop';
 import { useNavigate } from 'react-router-dom';
@@ -8,6 +8,12 @@ import {
   FaFileInvoice,
   FaSearch,
   FaTimes,
+  FaChevronDown,
+  FaCheck,
+  FaStore,
+  FaBoxes,
+  FaUser,
+  FaBox,
 } from 'react-icons/fa';
 import './manager-layout.css';
 import './generateSeles.css';
@@ -40,7 +46,27 @@ function ManagerGenerateSales() {
   const [showPartDropdown, setShowPartDropdown] = useState(false);
   const [letters, setLetters] = useState('');
   const [paymentType, setPaymentType] = useState('retail'); // 'retail' | 'wholesale'
+  const [paymentTypeMenuOpen, setPaymentTypeMenuOpen] = useState(false);
+  const paymentTypeRef = useRef(null);
   const [currentDateTime, setCurrentDateTime] = useState(getCurrentDateTime());
+
+  useEffect(() => {
+    if (!paymentTypeMenuOpen) return undefined;
+    const onPointerDown = (event) => {
+      if (paymentTypeRef.current && !paymentTypeRef.current.contains(event.target)) {
+        setPaymentTypeMenuOpen(false);
+      }
+    };
+    const onKeyDown = (event) => {
+      if (event.key === 'Escape') setPaymentTypeMenuOpen(false);
+    };
+    document.addEventListener('mousedown', onPointerDown);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', onPointerDown);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [paymentTypeMenuOpen]);
 
   useEffect(() => {
     const userData = localStorage.getItem('user') || sessionStorage.getItem('user');
@@ -273,6 +299,29 @@ function ManagerGenerateSales() {
 
   const totalPrice = getTotalAmount();
 
+  const paymentTypeOptions = [
+    {
+      value: 'retail',
+      label: t.retail || 'Retail',
+      hint: 'Sell at retail price',
+      icon: <FaStore className="generate-select-option-icon" aria-hidden="true" />,
+    },
+    {
+      value: 'wholesale',
+      label: t.wholesale || 'Wholesale',
+      hint: 'Sell at wholesale price',
+      icon: <FaBoxes className="generate-select-option-icon" aria-hidden="true" />,
+    },
+  ];
+
+  const activePaymentTypeOption =
+    paymentTypeOptions.find((opt) => opt.value === paymentType) || paymentTypeOptions[0];
+
+  const selectPaymentType = (value) => {
+    setPaymentType(value);
+    setPaymentTypeMenuOpen(false);
+  };
+
   const handleGenerateSale = async (e) => {
     e.preventDefault();
     if (!selectedCustomerId) {
@@ -380,19 +429,58 @@ function ManagerGenerateSales() {
                     <h3 className="boma-generate-section-title">{t.saleDetails || 'Sale details'}</h3>
                     <div className="boma-generate-row">
                       <div className="form-field">
-                        <label className="form-label" htmlFor="geita-payment-type">
+                        <label className="form-label" id="geita-payment-type-label">
                           {t.paymentType || 'Payment Type'} <span className="required">*</span>
                         </label>
-                        <select
-                          id="geita-payment-type"
-                          className="form-input form-select"
-                          value={paymentType}
-                          onChange={(e) => setPaymentType(e.target.value)}
-                          required
+                        <div
+                          className={`generate-select${paymentTypeMenuOpen ? ' is-open' : ''}`}
+                          ref={paymentTypeRef}
                         >
-                          <option value="retail">{t.retail || 'Retail'}</option>
-                          <option value="wholesale">{t.wholesale || 'Wholesale'}</option>
-                        </select>
+                          <button
+                            type="button"
+                            id="geita-payment-type"
+                            className="generate-select-trigger"
+                            aria-haspopup="listbox"
+                            aria-expanded={paymentTypeMenuOpen}
+                            aria-labelledby="geita-payment-type-label"
+                            onClick={() => setPaymentTypeMenuOpen((open) => !open)}
+                          >
+                            {activePaymentTypeOption.icon}
+                            <span className="generate-select-value">{activePaymentTypeOption.label}</span>
+                            <FaChevronDown className="generate-select-chevron" aria-hidden="true" />
+                          </button>
+                          {paymentTypeMenuOpen ? (
+                            <ul
+                              className="generate-select-menu"
+                              role="listbox"
+                              aria-labelledby="geita-payment-type-label"
+                            >
+                              {paymentTypeOptions.map((opt) => {
+                                const selected = opt.value === paymentType;
+                                return (
+                                  <li key={opt.value} role="presentation">
+                                    <button
+                                      type="button"
+                                      role="option"
+                                      aria-selected={selected}
+                                      className={`generate-select-option${selected ? ' is-selected' : ''}`}
+                                      onClick={() => selectPaymentType(opt.value)}
+                                    >
+                                      {opt.icon}
+                                      <span className="generate-select-option-text">
+                                        <span className="generate-select-option-label">{opt.label}</span>
+                                        <span className="generate-select-option-hint">{opt.hint}</span>
+                                      </span>
+                                      {selected ? (
+                                        <FaCheck className="generate-select-option-check" aria-hidden="true" />
+                                      ) : null}
+                                    </button>
+                                  </li>
+                                );
+                              })}
+                            </ul>
+                          ) : null}
+                        </div>
                       </div>
                       <div className="form-field">
                         <label className="form-label" htmlFor="geita-total-amount">
@@ -428,21 +516,25 @@ function ManagerGenerateSales() {
                             required={!selectedCustomerId}
                           />
                           {showCustomerDropdown && filteredCustomers.length > 0 && (
-                            <div className="dropdown-panel">
+                            <div className="dropdown-panel" role="listbox">
                               {filteredCustomers.map((customer) => (
-                                <div
+                                <button
+                                  type="button"
                                   key={customer.id}
-                                  className="dropdown-item"
+                                  className={`dropdown-item${
+                                    String(customer.id) === String(selectedCustomerId) ? ' is-selected' : ''
+                                  }`}
                                   onClick={() => handleCustomerSelect(customer)}
-                                  onKeyDown={(e) => {
-                                    if (e.key === 'Enter') handleCustomerSelect(customer);
-                                  }}
-                                  role="button"
-                                  tabIndex={0}
                                 >
-                                  <div className="dropdown-item-title">{capitalizeName(customer.name)}</div>
-                                  <div className="dropdown-item-meta">{customer.phone}</div>
-                                </div>
+                                  <FaUser className="dropdown-item-icon" aria-hidden="true" />
+                                  <span className="dropdown-item-text">
+                                    <span className="dropdown-item-title">{capitalizeName(customer.name)}</span>
+                                    <span className="dropdown-item-meta">{customer.phone}</span>
+                                  </span>
+                                  {String(customer.id) === String(selectedCustomerId) ? (
+                                    <FaCheck className="dropdown-item-check" aria-hidden="true" />
+                                  ) : null}
+                                </button>
                               ))}
                             </div>
                           )}
@@ -482,28 +574,27 @@ function ManagerGenerateSales() {
                           placeholder={t.searchSparePart}
                         />
                         {showPartDropdown && partSearchInput && filteredParts.length > 0 && (
-                          <div className="dropdown-panel">
+                          <div className="dropdown-panel" role="listbox">
                             {filteredParts.map((part) => (
-                              <div
+                              <button
+                                type="button"
                                 key={part.id}
                                 className="dropdown-item"
                                 onClick={() => handlePartSelect(part)}
-                                onKeyDown={(e) => {
-                                  if (e.key === 'Enter') handlePartSelect(part);
-                                }}
-                                role="button"
-                                tabIndex={0}
                               >
-                                <div className="dropdown-item-title">{capitalizeName(part.name)}</div>
-                                <div className="dropdown-item-meta">
-                                  {part.partNumber} · {part.brand} · TZS{' '}
-                                  {formatPrice(getUnitPrice(part))}
-                                  {' · '}
-                                  {paymentType === 'wholesale'
-                                    ? t.wholesale || 'Wholesale'
-                                    : t.retail || 'Retail'}
-                                </div>
-                              </div>
+                                <FaBox className="dropdown-item-icon" aria-hidden="true" />
+                                <span className="dropdown-item-text">
+                                  <span className="dropdown-item-title">{capitalizeName(part.name)}</span>
+                                  <span className="dropdown-item-meta">
+                                    {part.partNumber} · {part.brand} · TZS{' '}
+                                    {formatPrice(getUnitPrice(part))}
+                                    {' · '}
+                                    {paymentType === 'wholesale'
+                                      ? t.wholesale || 'Wholesale'
+                                      : t.retail || 'Retail'}
+                                  </span>
+                                </span>
+                              </button>
                             ))}
                           </div>
                         )}

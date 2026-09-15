@@ -19,11 +19,21 @@ import {
   FaPrint,
   FaDownload,
   FaUser,
+  FaUndo,
+  FaFilter,
+  FaChevronDown,
+  FaCheck,
+  FaList,
+  FaCalendarAlt,
+  FaUniversity,
+  FaMobileAlt,
+  FaWallet,
 } from 'react-icons/fa';
 import './manager-layout.css';
 import './loans.css';
+import './transactions.css';
 import logo from '../../images/logo.png';
-import { getPayments, updatePaymentDetails, createLoanFromPayment, deletePayment, getSpareParts } from '../../services/api';
+import { getPayments, updatePaymentDetails, createLoanFromPayment, deletePayment, getSpareParts, returnPayment } from '../../services/api';
 import { getCurrentDateTime } from '../../utils/dateTime';
 import { useTranslation } from '../../utils/useTranslation';
 import { canAccessBranch } from '../../utils/branchAuth';
@@ -42,7 +52,11 @@ function ManagerLoans() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
+  const [statusMenuOpen, setStatusMenuOpen] = useState(false);
+  const statusFilterRef = useRef(null);
   const [timeFilter, setTimeFilter] = useState('all');
+  const [timeMenuOpen, setTimeMenuOpen] = useState(false);
+  const timeFilterRef = useRef(null);
   const [customDateFrom, setCustomDateFrom] = useState('');
   const [customDateTo, setCustomDateTo] = useState('');
   const [showPaidTodayOnly, setShowPaidTodayOnly] = useState(false);
@@ -54,6 +68,8 @@ function ManagerLoans() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [editAmountReceived, setEditAmountReceived] = useState('');
   const [paymentMethodInput, setPaymentMethodInput] = useState('');
+  const [paymentMethodMenuOpen, setPaymentMethodMenuOpen] = useState(false);
+  const paymentMethodRef = useRef(null);
   const [splitCashInput, setSplitCashInput] = useState('');
   const [splitBankInput, setSplitBankInput] = useState('');
   const [splitAirtelInput, setSplitAirtelInput] = useState('');
@@ -81,7 +97,90 @@ function ManagerLoans() {
   const [addLoanStatus, setAddLoanStatus] = useState('Pending');
   const [addLoanSaving, setAddLoanSaving] = useState(false);
   const [deletingPaymentId, setDeletingPaymentId] = useState(null);
+  const [showReturnModal, setShowReturnModal] = useState(false);
+  const [returnAmountInput, setReturnAmountInput] = useState('');
+  const [returnItems, setReturnItems] = useState([]);
+  const [returnSaving, setReturnSaving] = useState(false);
   const editSaveInFlightRef = useRef(false);
+
+  useEffect(() => {
+    if (!statusMenuOpen && !timeMenuOpen && !paymentMethodMenuOpen) return undefined;
+    const onPointerDown = (event) => {
+      if (statusFilterRef.current && !statusFilterRef.current.contains(event.target)) {
+        setStatusMenuOpen(false);
+      }
+      if (timeFilterRef.current && !timeFilterRef.current.contains(event.target)) {
+        setTimeMenuOpen(false);
+      }
+      if (paymentMethodRef.current && !paymentMethodRef.current.contains(event.target)) {
+        setPaymentMethodMenuOpen(false);
+      }
+    };
+    const onKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        setStatusMenuOpen(false);
+        setTimeMenuOpen(false);
+        setPaymentMethodMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', onPointerDown);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', onPointerDown);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [statusMenuOpen, timeMenuOpen, paymentMethodMenuOpen]);
+
+  const statusFilterOptions = [
+    { value: 'All', label: 'All Status', hint: 'Every loan status' },
+    { value: 'Pending', label: 'Pending', hint: 'Awaiting approval' },
+    { value: 'Approved', label: 'Approved', hint: 'Approved loans' },
+    { value: 'Rejected', label: 'Rejected', hint: 'Rejected loans' },
+  ];
+
+  const activeStatusOption =
+    statusFilterOptions.find((opt) => opt.value === statusFilter) || statusFilterOptions[0];
+
+  const timeFilterOptions = [
+    { value: 'all', label: t.allTime || 'All Time', hint: 'No date restriction' },
+    { value: 'today', label: t.today || 'Today', hint: 'Created today' },
+    { value: 'week', label: t.last7Days || 'Last 7 days', hint: 'Past week' },
+    { value: 'month', label: t.last30Days || 'Last 30 days', hint: 'Past month' },
+    { value: 'custom', label: t.customRange || 'Custom range', hint: 'Pick from / to dates' },
+  ];
+
+  const activeTimeOption =
+    timeFilterOptions.find((opt) => opt.value === timeFilter) || timeFilterOptions[0];
+
+  const paymentMethodOptions = [
+    { value: '', label: t.selectPaymentMethod || 'Select Payment Method', hint: 'Choose how payment was received' },
+    { value: 'Cash', label: 'Cash', hint: 'Cash payment' },
+    { value: 'M-Pesa', label: 'M-Pesa', hint: 'M-Pesa mobile money' },
+    { value: 'Mix By Yas', label: 'Mix By Yas', hint: 'Yas / Mix By Yas' },
+    { value: 'Airtel Money', label: 'Airtel Money', hint: 'Airtel mobile money' },
+    { value: 'Bank Transfer', label: 'Bank Transfer', hint: 'Bank deposit / transfer' },
+    { value: 'Credit Card', label: 'Credit Card', hint: 'Card payment' },
+  ];
+
+  const activePaymentMethodOption =
+    paymentMethodOptions.find((opt) => opt.value === paymentMethodInput) || paymentMethodOptions[0];
+
+  const statusOptionIcon = (value) => {
+    if (value === 'Approved') return <FaCheckCircle className="txn-filter-option-icon" aria-hidden="true" />;
+    if (value === 'Rejected') return <FaTimesCircle className="txn-filter-option-icon" aria-hidden="true" />;
+    if (value === 'Pending') return <FaClock className="txn-filter-option-icon" aria-hidden="true" />;
+    return <FaList className="txn-filter-option-icon" aria-hidden="true" />;
+  };
+
+  const paymentMethodIcon = (value) => {
+    if (value === 'Cash') return <FaWallet className="txn-filter-option-icon" aria-hidden="true" />;
+    if (value === 'Bank Transfer') return <FaUniversity className="txn-filter-option-icon" aria-hidden="true" />;
+    if (value === 'Credit Card') return <FaCreditCard className="txn-filter-option-icon" aria-hidden="true" />;
+    if (value === 'M-Pesa' || value === 'Mix By Yas' || value === 'Airtel Money') {
+      return <FaMobileAlt className="txn-filter-option-icon" aria-hidden="true" />;
+    }
+    return <FaCreditCard className="txn-filter-option-icon" aria-hidden="true" />;
+  };
 
   useEffect(() => {
     const userData = localStorage.getItem('user') || sessionStorage.getItem('user');
@@ -939,6 +1038,180 @@ function ManagerLoans() {
     setShowEditModal(true);
   };
 
+  const buildReturnItemsFromPayment = (payment) => {
+    if (payment?.items && payment.items.length > 0) {
+      return payment.items.map((it) => {
+        const maxQty = parseInt(it.quantity, 10) || 0;
+        return {
+          sparepart_id: it.sparepart_id,
+          sparepart_name: it.sparepart_name || 'Unknown',
+          sparepart_number: it.sparepart_number || 'N/A',
+          unit_price: parseFloat(it.unit_price || it.price || 0) || 0,
+          max_quantity: maxQty,
+          quantity: 0,
+        };
+      });
+    }
+    const maxQty = parseInt(payment?.quantity, 10) || 0;
+    return [
+      {
+        sparepart_id: payment?.sparepart_id,
+        sparepart_name: payment?.sparepart_name || 'Unknown',
+        sparepart_number: payment?.sparepart_number || 'N/A',
+        unit_price: parseFloat(payment?.unit_price || payment?.price || 0) || 0,
+        max_quantity: maxQty,
+        quantity: 0,
+      },
+    ];
+  };
+
+  const suggestRefundFromReturnItems = (items, maxReceived) => {
+    const suggested = (items || []).reduce((sum, it) => {
+      const qty = Math.max(0, parseInt(it.quantity, 10) || 0);
+      const price = Number(it.unit_price) || 0;
+      return sum + qty * price;
+    }, 0);
+    const capped = Math.min(Math.max(0, suggested), Math.max(0, Number(maxReceived) || 0));
+    return String(Math.round(capped)).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  };
+
+  const getRemainingRefundable = (payment) => {
+    const received = Number(payment?.amount_received) || 0;
+    const alreadyReturned = Number(payment?.return_amount) || 0;
+    return Math.max(0, received - alreadyReturned);
+  };
+
+  const handleOpenReturnModal = (payment) => {
+    const remainingRefundable = getRemainingRefundable(payment);
+    if (!payment?.id || payment.status !== 'Approved' || remainingRefundable <= 0) {
+      Swal.fire({
+        icon: 'info',
+        title: t.refund || 'Refund',
+        text: 'Refund is only available for approved loans with money already received.',
+        confirmButtonColor: colors.primary,
+      });
+      return;
+    }
+    const items = buildReturnItemsFromPayment(payment);
+    setSelectedPayment(payment);
+    setReturnItems(items);
+    setReturnAmountInput(suggestRefundFromReturnItems(items, remainingRefundable));
+    setReturnSaving(false);
+    setShowReturnModal(true);
+  };
+
+  const handleReturnItemQuantityChange = (index, value) => {
+    setReturnItems((prev) => {
+      const next = prev.map((item, i) => {
+        if (i !== index) return item;
+        const maxQty = Math.max(0, Number(item.max_quantity) || 0);
+        let qty = parseInt(String(value || '0'), 10);
+        if (!Number.isFinite(qty) || qty < 0) qty = 0;
+        if (qty > maxQty) qty = maxQty;
+        return { ...item, quantity: qty };
+      });
+      const maxRefundable = getRemainingRefundable(selectedPayment);
+      setReturnAmountInput(suggestRefundFromReturnItems(next, maxRefundable));
+      return next;
+    });
+  };
+
+  const handleSaveReturnPayment = async () => {
+    if (!selectedPayment || returnSaving) return;
+
+    const remainingRefundable = getRemainingRefundable(selectedPayment);
+    const returnAmount = parseFloat(String(returnAmountInput || '').replace(/,/g, '').trim());
+    const itemsPayload = (returnItems || [])
+      .map((it) => ({
+        sparepart_id: it.sparepart_id,
+        quantity: Math.max(0, parseInt(it.quantity, 10) || 0),
+      }))
+      .filter((it) => it.sparepart_id && it.quantity > 0);
+
+    if (itemsPayload.length === 0) {
+      Swal.fire({
+        icon: 'warning',
+        title: t.invalidAmount || 'Invalid quantity',
+        text: 'Enter a return quantity greater than 0 for at least one spare part.',
+        confirmButtonColor: colors.primary,
+      });
+      return;
+    }
+
+    if (!Number.isFinite(returnAmount) || returnAmount <= 0) {
+      Swal.fire({
+        icon: 'warning',
+        title: t.invalidAmount || 'Invalid amount',
+        text: 'Enter a refund amount greater than 0.',
+        confirmButtonColor: colors.primary,
+      });
+      return;
+    }
+    if (returnAmount > remainingRefundable) {
+      Swal.fire({
+        icon: 'warning',
+        title: t.invalidAmount || 'Invalid amount',
+        text: `Refund cannot exceed TZS ${formatPrice(remainingRefundable)}.`,
+        confirmButtonColor: colors.primary,
+      });
+      return;
+    }
+
+    setReturnSaving(true);
+    try {
+      const response = await returnPayment(selectedPayment.id, {
+        return_amount: returnAmount,
+        items: itemsPayload,
+      });
+      if (!response?.success) {
+        throw new Error(response?.message || 'Failed to refund loan.');
+      }
+
+      const refreshResponse = await getPayments({ location: BRANCH_GEITA });
+      if (refreshResponse?.success && refreshResponse.payments) {
+        setPayments(refreshResponse.payments);
+      } else {
+        setPayments((prev) =>
+          prev.map((p) =>
+            p.id === selectedPayment.id
+              ? {
+                  ...p,
+                  status: response.payment?.status || p.status,
+                  return_amount:
+                    response.payment?.return_amount ??
+                    (Number(p.return_amount) || 0) + returnAmount,
+                  amount_remain:
+                    response.payment?.amount_remain != null
+                      ? response.payment.amount_remain
+                      : p.amount_remain,
+                  items: response.payment?.items || p.items,
+                }
+              : p
+          )
+        );
+      }
+
+      setShowReturnModal(false);
+      setSelectedPayment(null);
+      setReturnItems([]);
+      await Swal.fire({
+        icon: 'success',
+        title: 'Refunded',
+        text: `Saved TZS ${formatPrice(returnAmount)} to return column and restored spare part stock.`,
+        confirmButtonColor: colors.primary,
+      });
+    } catch (err) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: err.message || 'Failed to refund loan.',
+        confirmButtonColor: colors.primary,
+      });
+    } finally {
+      setReturnSaving(false);
+    }
+  };
+
   const handleDeleteLoan = async (payment) => {
     if (!payment?.id) return;
 
@@ -1195,6 +1468,7 @@ function ManagerLoans() {
       setSplitMpesaInput('');
       setSplitYasInput('');
       setPaymentMethodInput('');
+      setPaymentMethodMenuOpen(false);
       setShowEditModal(false);
       Swal.fire({
         icon: 'success',
@@ -1380,22 +1654,107 @@ function ManagerLoans() {
                 className="search-input"
               />
             </div>
-            <div className="filter-box">
-              <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="status-filter">
-                <option value="All">All Status</option>
-                <option value="Pending">Pending</option>
-                <option value="Approved">Approved</option>
-                <option value="Rejected">Rejected</option>
-              </select>
+            <div
+              className={`txn-filter-dropdown${statusFilter !== 'All' ? ' is-active' : ''}${
+                statusMenuOpen ? ' is-open' : ''
+              }`}
+              ref={statusFilterRef}
+            >
+              <button
+                type="button"
+                className="txn-filter-btn"
+                aria-haspopup="listbox"
+                aria-expanded={statusMenuOpen}
+                aria-label="Status"
+                onClick={() => {
+                  setTimeMenuOpen(false);
+                  setStatusMenuOpen((open) => !open);
+                }}
+              >
+                <FaFilter className="txn-filter-icon" aria-hidden="true" />
+                <span className="txn-filter-label">{activeStatusOption.label}</span>
+                <FaChevronDown className="txn-filter-chevron" aria-hidden="true" />
+              </button>
+              {statusMenuOpen ? (
+                <ul className="txn-filter-menu" role="listbox">
+                  {statusFilterOptions.map((opt) => {
+                    const selected = opt.value === statusFilter;
+                    return (
+                      <li key={opt.value} role="presentation">
+                        <button
+                          type="button"
+                          role="option"
+                          aria-selected={selected}
+                          className={`txn-filter-option${selected ? ' is-selected' : ''}`}
+                          onClick={() => {
+                            setStatusFilter(opt.value);
+                            setStatusMenuOpen(false);
+                          }}
+                        >
+                          {statusOptionIcon(opt.value)}
+                          <span className="txn-filter-option-text">
+                            <span className="txn-filter-option-label">{opt.label}</span>
+                            <span className="txn-filter-option-hint">{opt.hint}</span>
+                          </span>
+                          {selected ? <FaCheck className="txn-filter-option-check" aria-hidden="true" /> : null}
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              ) : null}
             </div>
-            <div className="filter-box manager-time-filter-group">
-              <select value={timeFilter} onChange={(e) => setTimeFilter(e.target.value)} className="status-filter">
-                <option value="all">{t.allTime}</option>
-                <option value="today">{t.today}</option>
-                <option value="week">{t.last7Days}</option>
-                <option value="month">{t.last30Days}</option>
-                <option value="custom">{t.customRange}</option>
-              </select>
+            <div className="manager-time-filter-group">
+              <div
+                className={`txn-filter-dropdown${timeFilter !== 'all' ? ' is-active' : ''}${
+                  timeMenuOpen ? ' is-open' : ''
+                }`}
+                ref={timeFilterRef}
+              >
+                <button
+                  type="button"
+                  className="txn-filter-btn"
+                  aria-haspopup="listbox"
+                  aria-expanded={timeMenuOpen}
+                  aria-label={t.allTime || 'Time'}
+                  onClick={() => {
+                    setStatusMenuOpen(false);
+                    setTimeMenuOpen((open) => !open);
+                  }}
+                >
+                  <FaCalendarAlt className="txn-filter-icon" aria-hidden="true" />
+                  <span className="txn-filter-label">{activeTimeOption.label}</span>
+                  <FaChevronDown className="txn-filter-chevron" aria-hidden="true" />
+                </button>
+                {timeMenuOpen ? (
+                  <ul className="txn-filter-menu" role="listbox">
+                    {timeFilterOptions.map((opt) => {
+                      const selected = opt.value === timeFilter;
+                      return (
+                        <li key={opt.value} role="presentation">
+                          <button
+                            type="button"
+                            role="option"
+                            aria-selected={selected}
+                            className={`txn-filter-option${selected ? ' is-selected' : ''}`}
+                            onClick={() => {
+                              setTimeFilter(opt.value);
+                              setTimeMenuOpen(false);
+                            }}
+                          >
+                            <FaCalendarAlt className="txn-filter-option-icon" aria-hidden="true" />
+                            <span className="txn-filter-option-text">
+                              <span className="txn-filter-option-label">{opt.label}</span>
+                              <span className="txn-filter-option-hint">{opt.hint}</span>
+                            </span>
+                            {selected ? <FaCheck className="txn-filter-option-check" aria-hidden="true" /> : null}
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                ) : null}
+              </div>
               {timeFilter === 'custom' && (
                 <div className="manager-date-range-inputs" aria-label="Date range">
                   <label className="manager-date-range-label">
@@ -1513,6 +1872,11 @@ function ManagerLoans() {
                       const disabledTitle = actionsDisabled
                         ? (t.loanPendingActionsDisabled || 'Actions unavailable while loan status is Pending or Rejected')
                         : undefined;
+                      const canReturn =
+                        !actionsDisabled &&
+                        payment.status === 'Approved' &&
+                        (Number(payment.amount_received) || 0) >
+                          (Number(payment.return_amount) || 0);
 
                       return (
                         <tr key={payment.id}>
@@ -1536,6 +1900,16 @@ function ManagerLoans() {
                                 <FaEdit className="action-icon" />
                                 <span className="action-text">{t.edit || 'Edit'}</span>
                               </button>
+                              {canReturn && (
+                                <button
+                                  className="action-btn return"
+                                  title={t.refund || 'Refund'}
+                                  onClick={() => handleOpenReturnModal(payment)}
+                                >
+                                  <FaUndo className="action-icon" />
+                                  <span className="action-text">{t.refund || 'Refund'}</span>
+                                </button>
+                              )}
                               <button
                                 className="action-btn print"
                                 title={disabledTitle || 'Print Details'}
@@ -2120,21 +2494,61 @@ function ManagerLoans() {
                   <section className="loan-edit-panel loan-edit-panel--payment">
                     <h3 className="loan-edit-panel-title"><FaMoneyBillWave /> Record installment</h3>
                     <div className="loan-edit-field">
-                      <label htmlFor="loan-payment-method"><FaCreditCard /> {t.paymentMethod || 'Payment Method'}</label>
-                      <select
-                        id="loan-payment-method"
-                        value={paymentMethodInput}
-                        onChange={(e) => setPaymentMethodInput(e.target.value)}
-                        className="loan-edit-input"
+                      <label id="loan-payment-method-label"><FaCreditCard /> {t.paymentMethod || 'Payment Method'}</label>
+                      <div
+                        className={`txn-receive-select${paymentMethodMenuOpen ? ' is-open' : ''}${
+                          paymentMethodInput ? ' has-value' : ''
+                        }`}
+                        ref={paymentMethodRef}
                       >
-                        <option value="">{t.selectPaymentMethod || 'Select Payment Method'}</option>
-                        <option value="Cash">Cash</option>
-                        <option value="M-Pesa">M-Pesa</option>
-                        <option value="Mix By Yas">Mix By Yas</option>
-                        <option value="Airtel Money">Airtel Money</option>
-                        <option value="Bank Transfer">Bank Transfer</option>
-                        <option value="Credit Card">Credit Card</option>
-                      </select>
+                        <button
+                          type="button"
+                          id="loan-payment-method"
+                          className="txn-receive-select-trigger"
+                          aria-haspopup="listbox"
+                          aria-expanded={paymentMethodMenuOpen}
+                          aria-labelledby="loan-payment-method-label"
+                          onClick={() => setPaymentMethodMenuOpen((open) => !open)}
+                        >
+                          {paymentMethodIcon(paymentMethodInput)}
+                          <span className="txn-receive-select-value">{activePaymentMethodOption.label}</span>
+                          <FaChevronDown className="txn-receive-select-chevron" aria-hidden="true" />
+                        </button>
+                        {paymentMethodMenuOpen ? (
+                          <ul
+                            className="txn-receive-select-menu"
+                            role="listbox"
+                            aria-labelledby="loan-payment-method-label"
+                          >
+                            {paymentMethodOptions.map((opt) => {
+                              const selected = opt.value === paymentMethodInput;
+                              return (
+                                <li key={opt.value || 'none'} role="presentation">
+                                  <button
+                                    type="button"
+                                    role="option"
+                                    aria-selected={selected}
+                                    className={`txn-receive-select-option${selected ? ' is-selected' : ''}`}
+                                    onClick={() => {
+                                      setPaymentMethodInput(opt.value);
+                                      setPaymentMethodMenuOpen(false);
+                                    }}
+                                  >
+                                    {paymentMethodIcon(opt.value)}
+                                    <span className="txn-receive-select-option-text">
+                                      <span className="txn-receive-select-option-label">{opt.label}</span>
+                                      <span className="txn-receive-select-option-hint">{opt.hint}</span>
+                                    </span>
+                                    {selected ? (
+                                      <FaCheck className="txn-receive-select-option-check" aria-hidden="true" />
+                                    ) : null}
+                                  </button>
+                                </li>
+                              );
+                            })}
+                          </ul>
+                        ) : null}
+                      </div>
                     </div>
                     <div className="loan-edit-field">
                       <label htmlFor="loan-amount-add">{t.amountReceived || 'Amount Received'} ({t.add || 'Add'})</label>
@@ -2213,6 +2627,160 @@ function ManagerLoans() {
                   disabled={editSaving}
                 >
                   {editSaving ? (t.saving || 'Saving...') : (t.save || 'Save installment')}
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {showReturnModal && selectedPayment && (() => {
+        const returnTotal = getLoanNetTotal(selectedPayment);
+        const returnReceived = Number(selectedPayment.amount_received) || 0;
+
+        return (
+          <div
+            className="modal-overlay transaction-edit-overlay"
+            onClick={() => {
+              if (!returnSaving) setShowReturnModal(false);
+            }}
+          >
+            <div className="modal-content transaction-edit-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="transaction-edit-header">
+                <div className="transaction-edit-header-text">
+                  <div className="transaction-edit-header-icon">
+                    <FaUndo />
+                  </div>
+                  <div>
+                    <h2>{t.refund || 'Refund'}</h2>
+                    <p>#{selectedPayment.id} · {formatDateTime(selectedPayment.created_at)}</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  className="close-btn"
+                  onClick={() => {
+                    if (!returnSaving) setShowReturnModal(false);
+                  }}
+                  disabled={returnSaving}
+                  aria-label="Close"
+                >
+                  ×
+                </button>
+              </div>
+
+              <div className="transaction-edit-body">
+                <div className="transaction-edit-grid">
+                  <section className="transaction-edit-panel">
+                    <h3 className="transaction-edit-panel-title"><FaUser /> Customer &amp; order</h3>
+                    <div className="transaction-edit-info-row">
+                      <span>{t.customer}</span>
+                      <strong>{capitalizeName(selectedPayment.customer_name || '—')}</strong>
+                    </div>
+                    <div className="transaction-edit-info-row">
+                      <span>{t.phone || 'Phone'}</span>
+                      <strong>{selectedPayment.customer_phone || '—'}</strong>
+                    </div>
+                    <div className="transaction-edit-info-row">
+                      <span>{t.paymentType || 'Payment type'}</span>
+                      <strong>{String(selectedPayment.payment_type || '').trim() || '—'}</strong>
+                    </div>
+                    <div className="transaction-edit-info-row">
+                      <span>{t.paymentMethod}</span>
+                      <strong>{selectedPayment.payment_method || '—'}</strong>
+                    </div>
+                    <div className="transaction-edit-info-row">
+                      <span>{t.status || 'Status'}</span>
+                      <span className={`status-badge ${(selectedPayment.status || '').toLowerCase()}`}>
+                        {selectedPayment.status || '—'}
+                      </span>
+                    </div>
+                    <div className="transaction-edit-field">
+                      <label htmlFor="loan-return-refund-amount">Refund amount (TZS)</label>
+                      <input
+                        id="loan-return-refund-amount"
+                        type="text"
+                        className="transaction-edit-input"
+                        value={returnAmountInput}
+                        readOnly
+                        disabled={returnSaving}
+                      />
+                      <small style={{ display: 'block', marginTop: 6, color: 'var(--text-muted, #666)' }}>
+                        Max refund: TZS {formatPrice(getRemainingRefundable(selectedPayment))}. Amount is saved to the return column; spare part stock is restored.
+                      </small>
+                    </div>
+                  </section>
+
+                  <section className="transaction-edit-panel transaction-edit-panel--items">
+                    <h3 className="transaction-edit-panel-title"><FaBox /> Spare parts to return</h3>
+                    <div className="transaction-edit-items">
+                      {returnItems.map((item, idx) => (
+                        <div key={idx} className="transaction-edit-item">
+                          <div className="transaction-edit-item-info">
+                            <strong>{capitalizeName(item.sparepart_name || 'Unknown')}</strong>
+                            <span>
+                              {(item.sparepart_number || 'N/A').toUpperCase()} · TZS {formatPrice(item.unit_price)}
+                              {item.max_quantity != null ? ` · Sold ${item.max_quantity}` : ''}
+                            </span>
+                          </div>
+                          <div className="transaction-edit-item-actions">
+                            <label>Qty</label>
+                            <input
+                              type="number"
+                              min="0"
+                              max={item.max_quantity || undefined}
+                              step="1"
+                              className="transaction-edit-input transaction-edit-input--qty"
+                              value={item.quantity}
+                              onChange={(e) => handleReturnItemQuantityChange(idx, e.target.value)}
+                              disabled={returnSaving}
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="transaction-edit-summary-table">
+                      <div className="transaction-edit-summary-row">
+                        <span>Total</span>
+                        <strong>TZS {formatPrice(returnTotal)}</strong>
+                      </div>
+                      <div className="transaction-edit-summary-row">
+                        <span>Received</span>
+                        <strong>TZS {formatPrice(returnReceived)}</strong>
+                      </div>
+                      <div className="transaction-edit-summary-row transaction-edit-summary-row--final">
+                        <span>Refund</span>
+                        <strong>
+                          TZS{' '}
+                          {formatPrice(
+                            parseFloat(String(returnAmountInput || '').replace(/,/g, '').trim()) || 0
+                          )}
+                        </strong>
+                      </div>
+                    </div>
+                  </section>
+                </div>
+              </div>
+
+              <div className="transaction-edit-footer">
+                <button
+                  type="button"
+                  className="cancel-btn"
+                  onClick={() => {
+                    if (!returnSaving) setShowReturnModal(false);
+                  }}
+                  disabled={returnSaving}
+                >
+                  {t.cancel || 'Cancel'}
+                </button>
+                <button
+                  type="button"
+                  className="transaction-edit-save-btn"
+                  onClick={handleSaveReturnPayment}
+                  disabled={returnSaving}
+                >
+                  <FaUndo />
+                  {returnSaving ? (t.saving || 'Saving...') : (t.refund || 'Refund')}
                 </button>
               </div>
             </div>

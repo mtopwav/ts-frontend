@@ -102,7 +102,7 @@ export default function BrandDatePicker({
   const displayValue = value ? formatDate(value) || value : '';
 
   return (
-    <div className="brand-datepicker" ref={rootRef}>
+    <div className={`brand-datepicker${open ? ' is-open' : ''}`} ref={rootRef}>
       {label ? (
         <label className="brand-datepicker-label" htmlFor={id}>
           {label}

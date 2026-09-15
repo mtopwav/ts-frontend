@@ -19,11 +19,19 @@ import {
   FaDownload,
   FaUser,
   FaBox,
+  FaUndo,
+  FaFilter,
+  FaChevronDown,
+  FaCheck,
+  FaList,
+  FaUniversity,
+  FaMobileAlt,
+  FaWallet,
 } from 'react-icons/fa';
 import './manager-layout.css';
 import './transactions.css';
 import logo from '../../images/logo.png';
-import { getPayments, updatePaymentStatus, getSpareParts, apiRequest, deletePayment, updatePaymentDetails } from '../../services/api';
+import { getPayments, updatePaymentStatus, getSpareParts, apiRequest, deletePayment, updatePaymentDetails, returnPayment } from '../../services/api';
 import { getCurrentDateTime } from '../../utils/dateTime';
 import { useTranslation } from '../../utils/useTranslation';
 import { canAccessBranch } from '../../utils/branchAuth';
@@ -43,6 +51,10 @@ function ManagerTransactions() {
   const [searchTerm, setSearchTerm] = useState('');
   // Default to 'All' so all payments from the database are visible initially
   const [statusFilter, setStatusFilter] = useState('All');
+  const [statusMenuOpen, setStatusMenuOpen] = useState(false);
+  const statusFilterRef = useRef(null);
+  const [paymentMethodMenuOpen, setPaymentMethodMenuOpen] = useState(false);
+  const paymentMethodRef = useRef(null);
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [payments, setPayments] = useState([]);
@@ -60,6 +72,10 @@ function ManagerTransactions() {
   const [showNewSpareDropdown, setShowNewSpareDropdown] = useState(false);
   const [selectedNewSpareId, setSelectedNewSpareId] = useState('');
   const [showReceiveModal, setShowReceiveModal] = useState(false);
+  const [showReturnModal, setShowReturnModal] = useState(false);
+  const [returnAmountInput, setReturnAmountInput] = useState('');
+  const [returnItems, setReturnItems] = useState([]);
+  const [returnSaving, setReturnSaving] = useState(false);
   const [receiveAmountInput, setReceiveAmountInput] = useState('');
   const [paymentMethodInput, setPaymentMethodInput] = useState('');
   const [splitCashInput, setSplitCashInput] = useState('');
@@ -70,6 +86,72 @@ function ManagerTransactions() {
   const [sparepartIdInput, setSparepartIdInput] = useState('');
   const [receiveSaving, setReceiveSaving] = useState(false);
   const receiveSaveInFlightRef = useRef(false);
+
+  useEffect(() => {
+    if (!statusMenuOpen && !paymentMethodMenuOpen) return undefined;
+    const onPointerDown = (event) => {
+      if (statusFilterRef.current && !statusFilterRef.current.contains(event.target)) {
+        setStatusMenuOpen(false);
+      }
+      if (paymentMethodRef.current && !paymentMethodRef.current.contains(event.target)) {
+        setPaymentMethodMenuOpen(false);
+      }
+    };
+    const onKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        setStatusMenuOpen(false);
+        setPaymentMethodMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', onPointerDown);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', onPointerDown);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [statusMenuOpen, paymentMethodMenuOpen]);
+
+  const statusFilterOptions = [
+    { value: 'All', label: t.allStatus || 'All Status', hint: 'Every transaction status' },
+    { value: 'Pending', label: t.pending || 'Pending', hint: 'Awaiting approval' },
+    { value: 'Approved', label: t.approved || 'Approved', hint: 'Approved transactions' },
+    { value: 'Rejected', label: t.rejected || 'Rejected', hint: 'Rejected transactions' },
+    { value: 'Returned', label: t.returned || 'Returned', hint: 'Refunded / returned' },
+  ];
+
+  const activeStatusOption =
+    statusFilterOptions.find((opt) => opt.value === statusFilter) || statusFilterOptions[0];
+
+  const paymentMethodOptions = [
+    { value: '', label: t.selectPaymentMethod || 'Select Payment Method', hint: 'Choose how payment was received' },
+    { value: 'Cash', label: 'Cash', hint: 'Cash payment' },
+    { value: 'M-Pesa', label: 'M-Pesa', hint: 'M-Pesa mobile money' },
+    { value: 'Mix By Yas', label: 'Mix By Yas', hint: 'Yas / Mix By Yas' },
+    { value: 'Airtel Money', label: 'Airtel Money', hint: 'Airtel mobile money' },
+    { value: 'Bank Transfer', label: 'Bank Transfer', hint: 'Bank deposit / transfer' },
+    { value: 'Credit Card', label: 'Credit Card', hint: 'Card payment' },
+  ];
+
+  const activePaymentMethodOption =
+    paymentMethodOptions.find((opt) => opt.value === paymentMethodInput) || paymentMethodOptions[0];
+
+  const paymentMethodIcon = (value) => {
+    if (value === 'Cash') return <FaWallet className="txn-filter-option-icon" aria-hidden="true" />;
+    if (value === 'Bank Transfer') return <FaUniversity className="txn-filter-option-icon" aria-hidden="true" />;
+    if (value === 'Credit Card') return <FaCreditCard className="txn-filter-option-icon" aria-hidden="true" />;
+    if (value === 'M-Pesa' || value === 'Mix By Yas' || value === 'Airtel Money') {
+      return <FaMobileAlt className="txn-filter-option-icon" aria-hidden="true" />;
+    }
+    return <FaCreditCard className="txn-filter-option-icon" aria-hidden="true" />;
+  };
+
+  const statusOptionIcon = (value) => {
+    if (value === 'Approved') return <FaCheckCircle className="txn-filter-option-icon" aria-hidden="true" />;
+    if (value === 'Rejected') return <FaTimesCircle className="txn-filter-option-icon" aria-hidden="true" />;
+    if (value === 'Returned') return <FaUndo className="txn-filter-option-icon" aria-hidden="true" />;
+    if (value === 'Pending') return <FaClock className="txn-filter-option-icon" aria-hidden="true" />;
+    return <FaList className="txn-filter-option-icon" aria-hidden="true" />;
+  };
 
   const normalizePriceType = (value) => String(value || '').trim().toLowerCase();
   const getSparePriceByType = (spare, priceType) => {
@@ -681,6 +763,217 @@ function ManagerTransactions() {
     setShowReceiveModal(true);
   };
 
+  const buildReturnItemsFromPayment = (payment) => {
+    const toReturnLine = (it) => {
+      const soldQty =
+        parseInt(it.original_quantity ?? it.quantity, 10) || 0;
+      const returnedQty = parseInt(it.returned_quantity, 10) || 0;
+      const hasReturnTracking =
+        it.returned_quantity != null || it.original_quantity != null;
+      const maxQty = hasReturnTracking
+        ? Math.max(0, soldQty - returnedQty)
+        : Math.max(0, parseInt(it.quantity, 10) || 0);
+      return {
+        sparepart_id: it.sparepart_id != null ? Number(it.sparepart_id) : null,
+        sparepart_name: it.sparepart_name || 'Unknown',
+        sparepart_number: it.sparepart_number || 'N/A',
+        unit_price: parseFloat(it.unit_price || it.price || 0) || 0,
+        max_quantity: maxQty,
+        quantity: 0,
+      };
+    };
+
+    if (payment?.items && payment.items.length > 0) {
+      return payment.items.map(toReturnLine).filter((it) => it.max_quantity > 0);
+    }
+    const maxQty = parseInt(payment?.quantity, 10) || 0;
+    if (maxQty <= 0) return [];
+    return [
+      {
+        sparepart_id: payment?.sparepart_id != null ? Number(payment.sparepart_id) : null,
+        sparepart_name: payment?.sparepart_name || 'Unknown',
+        sparepart_number: payment?.sparepart_number || 'N/A',
+        unit_price: parseFloat(payment?.unit_price || payment?.price || 0) || 0,
+        max_quantity: maxQty,
+        quantity: 0,
+      },
+    ];
+  };
+
+  const suggestRefundFromReturnItems = (items, maxReceived) => {
+    const suggested = (items || []).reduce((sum, it) => {
+      const qty = Math.max(0, parseInt(it.quantity, 10) || 0);
+      const price = Number(it.unit_price) || 0;
+      return sum + qty * price;
+    }, 0);
+    const capped = Math.min(Math.max(0, suggested), Math.max(0, Number(maxReceived) || 0));
+    return String(Math.round(capped)).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  };
+
+  const getRemainingRefundable = (payment) => {
+    const received = Number(payment?.amount_received) || 0;
+    const alreadyReturned = Number(payment?.return_amount) || 0;
+    return Math.max(0, received - alreadyReturned);
+  };
+
+  const handleOpenReturnModal = (payment) => {
+    const remainingRefundable = getRemainingRefundable(payment);
+    if (!payment?.id || payment.status !== 'Approved' || remainingRefundable <= 0) {
+      Swal.fire({
+        icon: 'info',
+        title: t.refund || 'Refund',
+        text: 'Refund is only available for approved transactions with money already received.',
+        confirmButtonColor: colors.primary,
+      });
+      return;
+    }
+    const items = buildReturnItemsFromPayment(payment);
+    if (!items.length) {
+      Swal.fire({
+        icon: 'info',
+        title: t.refund || 'Refund',
+        text: 'There are no spare part quantities left to restore for this transaction.',
+        confirmButtonColor: colors.primary,
+      });
+      return;
+    }
+    setSelectedPayment(payment);
+    setReturnItems(items);
+    setReturnAmountInput(suggestRefundFromReturnItems(items, remainingRefundable));
+    setReturnSaving(false);
+    setShowReturnModal(true);
+  };
+
+  const handleReturnItemQuantityChange = (index, value) => {
+    setReturnItems((prev) => {
+      const next = prev.map((item, i) => {
+        if (i !== index) return item;
+        const maxQty = Math.max(0, Number(item.max_quantity) || 0);
+        let qty = parseInt(String(value || '0'), 10);
+        if (!Number.isFinite(qty) || qty < 0) qty = 0;
+        if (qty > maxQty) qty = maxQty;
+        return { ...item, quantity: qty };
+      });
+      const maxRefundable = getRemainingRefundable(selectedPayment);
+      setReturnAmountInput(suggestRefundFromReturnItems(next, maxRefundable));
+      return next;
+    });
+  };
+
+  const handleSaveReturnPayment = async () => {
+    if (!selectedPayment || returnSaving) return;
+
+    const remainingRefundable = getRemainingRefundable(selectedPayment);
+    const returnAmount = parseFloat(String(returnAmountInput || '').replace(/,/g, '').trim());
+    const itemsPayload = (returnItems || [])
+      .map((it) => ({
+        sparepart_id: Number(it.sparepart_id),
+        quantity: Math.max(0, parseInt(it.quantity, 10) || 0),
+      }))
+      .filter((it) => Number.isFinite(it.sparepart_id) && it.sparepart_id > 0 && it.quantity > 0);
+
+    if (itemsPayload.length === 0) {
+      Swal.fire({
+        icon: 'warning',
+        title: t.invalidAmount || 'Invalid quantity',
+        text: 'Enter a return quantity greater than 0 for at least one spare part.',
+        confirmButtonColor: colors.primary,
+      });
+      return;
+    }
+
+    if (!Number.isFinite(returnAmount) || returnAmount <= 0) {
+      Swal.fire({
+        icon: 'warning',
+        title: t.invalidAmount || 'Invalid amount',
+        text: 'Enter a refund amount greater than 0.',
+        confirmButtonColor: colors.primary,
+      });
+      return;
+    }
+    if (returnAmount > remainingRefundable) {
+      Swal.fire({
+        icon: 'warning',
+        title: t.invalidAmount || 'Invalid amount',
+        text: `Refund cannot exceed TZS ${formatPrice(remainingRefundable)}.`,
+        confirmButtonColor: colors.primary,
+      });
+      return;
+    }
+
+    setReturnSaving(true);
+    try {
+      const response = await returnPayment(selectedPayment.id, {
+        return_amount: returnAmount,
+        items: itemsPayload,
+      });
+      if (!response?.success) {
+        throw new Error(response?.message || 'Failed to refund transaction.');
+      }
+
+      const restoredItems = Array.isArray(response.restored_items)
+        ? response.restored_items
+        : itemsPayload;
+      const restoredQtyTotal = restoredItems.reduce(
+        (sum, it) => sum + (Math.max(0, parseInt(it.quantity, 10) || 0)),
+        0
+      );
+
+      const [refreshResponse, sparepartsResponse] = await Promise.all([
+        getPayments({ location: BRANCH_BOMA }),
+        getSpareParts(BRANCH_BOMA),
+      ]);
+      if (refreshResponse?.success && refreshResponse.payments) {
+        setPayments(refreshResponse.payments);
+      } else {
+        setPayments((prev) =>
+          prev.map((p) =>
+            p.id === selectedPayment.id
+              ? {
+                  ...p,
+                  status: response.payment?.status || p.status,
+                  return_amount:
+                    response.payment?.return_amount ??
+                    (Number(p.return_amount) || 0) + returnAmount,
+                  amount_remain:
+                    response.payment?.amount_remain != null
+                      ? response.payment.amount_remain
+                      : p.amount_remain,
+                  quantity:
+                    response.payment?.quantity != null
+                      ? response.payment.quantity
+                      : p.quantity,
+                  items: response.payment?.items || p.items,
+                }
+              : p
+          )
+        );
+      }
+      if (sparepartsResponse?.success && sparepartsResponse.spareParts) {
+        setSpareparts(sparepartsResponse.spareParts);
+      }
+
+      setShowReturnModal(false);
+      setSelectedPayment(null);
+      setReturnItems([]);
+      await Swal.fire({
+        icon: 'success',
+        title: 'Refunded',
+        text: `Saved TZS ${formatPrice(returnAmount)} to return and restored ${restoredQtyTotal} spare part unit(s) to stock.`,
+        confirmButtonColor: colors.primary,
+      });
+    } catch (err) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: err.message || 'Failed to refund transaction.',
+        confirmButtonColor: colors.primary,
+      });
+    } finally {
+      setReturnSaving(false);
+    }
+  };
+
   const handlePayFullRemainder = () => {
     if (!selectedPayment) return;
     const remain = getAmountRemain(selectedPayment);
@@ -833,6 +1126,7 @@ function ManagerTransactions() {
       setSplitMpesaInput('');
       setSplitYasInput('');
       setPaymentMethodInput('');
+      setPaymentMethodMenuOpen(false);
       setShowReceiveModal(false);
 
       Swal.fire({
@@ -1373,11 +1667,13 @@ function ManagerTransactions() {
     
     const displayApproved = payment.status === 'Approved' || (payment.status === 'Pending' && amountRemain === 0);
     const displayPending = payment.status === 'Pending' && amountRemain !== 0;
+    const displayReturned = payment.status === 'Returned' || Number(payment.return_amount) > 0;
     const matchesStatus =
       statusFilter === 'All' ||
-      (statusFilter === 'Approved' && displayApproved) ||
+      (statusFilter === 'Approved' && displayApproved && !displayReturned) ||
       (statusFilter === 'Pending' && displayPending) ||
-      (statusFilter === 'Rejected' && payment.status === 'Rejected');
+      (statusFilter === 'Rejected' && payment.status === 'Rejected') ||
+      (statusFilter === 'Returned' && displayReturned);
 
     return matchesSearch && matchesStatus;
   });
@@ -1441,13 +1737,52 @@ function ManagerTransactions() {
                 className="search-input"
               />
             </div>
-            <div className="filter-box">
-              <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="status-filter">
-                <option value="All">{t.allStatus}</option>
-                <option value="Pending">{t.pending}</option>
-                <option value="Approved">{t.approved}</option>
-                <option value="Rejected">{t.rejected}</option>
-              </select>
+            <div
+              className={`txn-filter-dropdown${statusFilter !== 'All' ? ' is-active' : ''}${
+                statusMenuOpen ? ' is-open' : ''
+              }`}
+              ref={statusFilterRef}
+            >
+              <button
+                type="button"
+                className="txn-filter-btn"
+                aria-haspopup="listbox"
+                aria-expanded={statusMenuOpen}
+                aria-label={t.status || 'Status'}
+                onClick={() => setStatusMenuOpen((open) => !open)}
+              >
+                <FaFilter className="txn-filter-icon" aria-hidden="true" />
+                <span className="txn-filter-label">{activeStatusOption.label}</span>
+                <FaChevronDown className="txn-filter-chevron" aria-hidden="true" />
+              </button>
+              {statusMenuOpen ? (
+                <ul className="txn-filter-menu" role="listbox">
+                  {statusFilterOptions.map((opt) => {
+                    const selected = opt.value === statusFilter;
+                    return (
+                      <li key={opt.value} role="presentation">
+                        <button
+                          type="button"
+                          role="option"
+                          aria-selected={selected}
+                          className={`txn-filter-option${selected ? ' is-selected' : ''}`}
+                          onClick={() => {
+                            setStatusFilter(opt.value);
+                            setStatusMenuOpen(false);
+                          }}
+                        >
+                          {statusOptionIcon(opt.value)}
+                          <span className="txn-filter-option-text">
+                            <span className="txn-filter-option-label">{opt.label}</span>
+                            <span className="txn-filter-option-hint">{opt.hint}</span>
+                          </span>
+                          {selected ? <FaCheck className="txn-filter-option-check" aria-hidden="true" /> : null}
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              ) : null}
             </div>
             <div className="manager-transactions-date-filters">
               <label className="manager-date-filter-label">
@@ -1552,10 +1887,16 @@ function ManagerTransactions() {
                     const displayStatus =
                       payment.status === 'Rejected'
                         ? 'Rejected'
+                        : payment.status === 'Returned' || Number(payment.return_amount) > 0
+                        ? 'Returned'
                         : payment.status === 'Approved' || amountRemain === 0
                         ? 'Approved'
                         : 'Pending';
                     const needsApproval = payment.status === 'Pending' && amountRemain !== 0;
+                    const canReturn =
+                      payment.status === 'Approved' &&
+                      (Number(payment.amount_received) || 0) >
+                        (Number(payment.return_amount) || 0);
 
                     return (
                       <tr key={payment.id}>
@@ -1573,6 +1914,16 @@ function ManagerTransactions() {
                               >
                                 <FaMoneyBillWave className="action-icon" />
                                 <span className="action-text">{t.receiveMoney || 'Receive Money'}</span>
+                              </button>
+                            )}
+                            {canReturn && (
+                              <button
+                                className="action-btn return"
+                                title={t.refund || 'Refund'}
+                                onClick={() => handleOpenReturnModal(payment)}
+                              >
+                                <FaUndo className="action-icon" />
+                                <span className="action-text">{t.refund || 'Refund'}</span>
                               </button>
                             )}
                             {payment.status === 'Pending' && (
@@ -1704,13 +2055,26 @@ function ManagerTransactions() {
                         <td>
                           <span
                             className={`status-badge ${
-                              displayStatus === 'Approved' ? 'approved' : displayStatus === 'Rejected' ? 'rejected' : 'pending'
+                              displayStatus === 'Approved'
+                                ? 'approved'
+                                : displayStatus === 'Rejected'
+                                ? 'rejected'
+                                : displayStatus === 'Returned'
+                                ? 'returned'
+                                : 'pending'
                             }`}
                           >
                             {displayStatus === 'Approved' && <FaCheckCircle />}
                             {displayStatus === 'Rejected' && <FaTimesCircle />}
+                            {displayStatus === 'Returned' && <FaUndo />}
                             {displayStatus === 'Pending' && <FaClock />}
-                            {displayStatus === 'Approved' ? t.approved : displayStatus === 'Rejected' ? t.rejected : t.pending}
+                            {displayStatus === 'Approved'
+                              ? t.approved
+                              : displayStatus === 'Rejected'
+                              ? t.rejected
+                              : displayStatus === 'Returned'
+                              ? t.returned || 'Returned'
+                              : t.pending}
                           </span>
                         </td>
                         <td>{formatDateTime(payment.created_at)}</td>
@@ -2025,6 +2389,160 @@ function ManagerTransactions() {
         </div>
       )}
 
+      {showReturnModal && selectedPayment && (() => {
+        const returnTotal = getPaymentTotalAmount(selectedPayment);
+        const returnReceived = Number(selectedPayment.amount_received) || 0;
+
+        return (
+          <div
+            className="modal-overlay transaction-edit-overlay"
+            onClick={() => {
+              if (!returnSaving) setShowReturnModal(false);
+            }}
+          >
+            <div className="modal-content transaction-edit-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="transaction-edit-header">
+                <div className="transaction-edit-header-text">
+                  <div className="transaction-edit-header-icon">
+                    <FaUndo />
+                  </div>
+                  <div>
+                    <h2>{t.refund || 'Refund'}</h2>
+                    <p>#{selectedPayment.id} · {formatDateTime(selectedPayment.created_at)}</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  className="close-btn"
+                  onClick={() => {
+                    if (!returnSaving) setShowReturnModal(false);
+                  }}
+                  disabled={returnSaving}
+                  aria-label="Close"
+                >
+                  ×
+                </button>
+              </div>
+
+              <div className="transaction-edit-body">
+                <div className="transaction-edit-grid">
+                  <section className="transaction-edit-panel">
+                    <h3 className="transaction-edit-panel-title"><FaUser /> Customer &amp; order</h3>
+                    <div className="transaction-edit-info-row">
+                      <span>{t.customer}</span>
+                      <strong>{capitalizeName(selectedPayment.customer_name || '—')}</strong>
+                    </div>
+                    <div className="transaction-edit-info-row">
+                      <span>{t.phone || 'Phone'}</span>
+                      <strong>{selectedPayment.customer_phone || '—'}</strong>
+                    </div>
+                    <div className="transaction-edit-info-row">
+                      <span>{t.paymentType || 'Payment type'}</span>
+                      <strong>{String(selectedPayment.payment_type || '').trim() || '—'}</strong>
+                    </div>
+                    <div className="transaction-edit-info-row">
+                      <span>{t.paymentMethod}</span>
+                      <strong>{selectedPayment.payment_method || '—'}</strong>
+                    </div>
+                    <div className="transaction-edit-info-row">
+                      <span>{t.status || 'Status'}</span>
+                      <span className={`status-badge ${(selectedPayment.status || '').toLowerCase()}`}>
+                        {selectedPayment.status || '—'}
+                      </span>
+                    </div>
+                    <div className="transaction-edit-field">
+                      <label htmlFor="return-refund-amount">Refund amount (TZS)</label>
+                      <input
+                        id="return-refund-amount"
+                        type="text"
+                        className="transaction-edit-input"
+                        value={returnAmountInput}
+                        readOnly
+                        disabled={returnSaving}
+                      />
+                      <small style={{ display: 'block', marginTop: 6, color: 'var(--text-muted, #666)' }}>
+                        Max refund: TZS {formatPrice(getRemainingRefundable(selectedPayment))}. Enter return Qty for each part — stock is increased by those quantities only.
+                      </small>
+                    </div>
+                  </section>
+
+                  <section className="transaction-edit-panel transaction-edit-panel--items">
+                    <h3 className="transaction-edit-panel-title"><FaBox /> Spare parts to return</h3>
+                    <div className="transaction-edit-items">
+                      {returnItems.map((item, idx) => (
+                        <div key={idx} className="transaction-edit-item">
+                          <div className="transaction-edit-item-info">
+                            <strong>{capitalizeName(item.sparepart_name || 'Unknown')}</strong>
+                            <span>
+                              {(item.sparepart_number || 'N/A').toUpperCase()} · TZS {formatPrice(item.unit_price)}
+                              {item.max_quantity != null ? ` · Sold ${item.max_quantity}` : ''}
+                            </span>
+                          </div>
+                          <div className="transaction-edit-item-actions">
+                            <label>Qty</label>
+                            <input
+                              type="number"
+                              min="0"
+                              max={item.max_quantity || undefined}
+                              step="1"
+                              className="transaction-edit-input transaction-edit-input--qty"
+                              value={item.quantity}
+                              onChange={(e) => handleReturnItemQuantityChange(idx, e.target.value)}
+                              disabled={returnSaving}
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="transaction-edit-summary-table">
+                      <div className="transaction-edit-summary-row">
+                        <span>Total</span>
+                        <strong>TZS {formatPrice(returnTotal)}</strong>
+                      </div>
+                      <div className="transaction-edit-summary-row">
+                        <span>Received</span>
+                        <strong>TZS {formatPrice(returnReceived)}</strong>
+                      </div>
+                      <div className="transaction-edit-summary-row transaction-edit-summary-row--final">
+                        <span>Refund</span>
+                        <strong>
+                          TZS{' '}
+                          {formatPrice(
+                            parseFloat(String(returnAmountInput || '').replace(/,/g, '').trim()) || 0
+                          )}
+                        </strong>
+                      </div>
+                    </div>
+                  </section>
+                </div>
+              </div>
+
+              <div className="transaction-edit-footer">
+                <button
+                  type="button"
+                  className="cancel-btn"
+                  onClick={() => {
+                    if (!returnSaving) setShowReturnModal(false);
+                  }}
+                  disabled={returnSaving}
+                >
+                  {t.cancel || 'Cancel'}
+                </button>
+                <button
+                  type="button"
+                  className="transaction-edit-save-btn"
+                  onClick={handleSaveReturnPayment}
+                  disabled={returnSaving}
+                >
+                  <FaUndo />
+                  {returnSaving ? (t.saving || 'Saving...') : (t.refund || 'Refund')}
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
       {showReceiveModal && selectedPayment && (() => {
         const totalAmount = getPaymentTotalAmount(selectedPayment);
         const currentReceived = Number(selectedPayment.amount_received) || 0;
@@ -2112,21 +2630,61 @@ function ManagerTransactions() {
                   <h3 className="receive-money-panel-title"><FaCreditCard /> Payment entry</h3>
 
                   <div className="receive-money-field">
-                    <label htmlFor="receive-payment-method">{t.paymentMethod || 'Payment Method'}</label>
-                    <select
-                      id="receive-payment-method"
-                      value={paymentMethodInput}
-                      onChange={(e) => setPaymentMethodInput(e.target.value)}
-                      className="receive-money-input"
+                    <label id="receive-payment-method-label">{t.paymentMethod || 'Payment Method'}</label>
+                    <div
+                      className={`txn-receive-select${paymentMethodMenuOpen ? ' is-open' : ''}${
+                        paymentMethodInput ? ' has-value' : ''
+                      }`}
+                      ref={paymentMethodRef}
                     >
-                      <option value="">{t.selectPaymentMethod || 'Select Payment Method'}</option>
-                      <option value="Cash">Cash</option>
-                      <option value="M-Pesa">M-Pesa</option>
-                      <option value="Mix By Yas">Mix By Yas</option>
-                      <option value="Airtel Money">Airtel Money</option>
-                      <option value="Bank Transfer">Bank Transfer</option>
-                      <option value="Credit Card">Credit Card</option>
-                    </select>
+                      <button
+                        type="button"
+                        id="receive-payment-method"
+                        className="txn-receive-select-trigger"
+                        aria-haspopup="listbox"
+                        aria-expanded={paymentMethodMenuOpen}
+                        aria-labelledby="receive-payment-method-label"
+                        onClick={() => setPaymentMethodMenuOpen((open) => !open)}
+                      >
+                        {paymentMethodIcon(paymentMethodInput)}
+                        <span className="txn-receive-select-value">{activePaymentMethodOption.label}</span>
+                        <FaChevronDown className="txn-receive-select-chevron" aria-hidden="true" />
+                      </button>
+                      {paymentMethodMenuOpen ? (
+                        <ul
+                          className="txn-receive-select-menu"
+                          role="listbox"
+                          aria-labelledby="receive-payment-method-label"
+                        >
+                          {paymentMethodOptions.map((opt) => {
+                            const selected = opt.value === paymentMethodInput;
+                            return (
+                              <li key={opt.value || 'none'} role="presentation">
+                                <button
+                                  type="button"
+                                  role="option"
+                                  aria-selected={selected}
+                                  className={`txn-receive-select-option${selected ? ' is-selected' : ''}`}
+                                  onClick={() => {
+                                    setPaymentMethodInput(opt.value);
+                                    setPaymentMethodMenuOpen(false);
+                                  }}
+                                >
+                                  {paymentMethodIcon(opt.value)}
+                                  <span className="txn-receive-select-option-text">
+                                    <span className="txn-receive-select-option-label">{opt.label}</span>
+                                    <span className="txn-receive-select-option-hint">{opt.hint}</span>
+                                  </span>
+                                  {selected ? (
+                                    <FaCheck className="txn-receive-select-option-check" aria-hidden="true" />
+                                  ) : null}
+                                </button>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      ) : null}
+                    </div>
                   </div>
 
                   <div className="receive-money-field">

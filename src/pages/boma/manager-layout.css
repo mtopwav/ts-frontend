@@ -14,7 +14,7 @@
   width: 260px;
   background: linear-gradient(180deg, var(--sidebar-bg-start, var(--primary)) 0%, var(--sidebar-bg-end, var(--primary-dark)) 100%);
   color: var(--sidebar-text, var(--white));
-  transition: width 0.3s ease;
+  transition: width 0.3s ease, transform 0.34s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.3s ease;
   position: fixed;
   top: 0;
   left: 0;
@@ -439,6 +439,12 @@
   color: var(--error-text);
 }
 
+.status-badge.returned,
+.status-badge.Returned {
+  background: #e2e3e5;
+  color: #383d41;
+}
+
 /* Action buttons in tables */
 .action-buttons {
   display: inline-flex;
@@ -715,42 +721,9 @@
   border-color: var(--border-color);
 }
 
-/* Responsive — keep full sidebar until mobile off-canvas (see mobile.css) */
+/* Responsive — mobile drawer/layout owned by styles/mobile.css */
 @media (max-width: 768px) {
-  .payments-header {
-    padding: 14px 16px;
-  }
-
-  .payments-header .page-title {
-    font-size: 1.2rem;
-  }
-
-  .payments-content,
-  .cashier-content {
-    padding: 16px;
-  }
-
   .form-row {
     grid-template-columns: 1fr;
-  }
-
-  .payments-header .manager-date-time {
-    display: none;
-  }
-}
-
-@media (max-width: 576px) {
-  .payments-container .sidebar {
-    transform: translateX(-100%);
-    width: 260px;
-  }
-
-  .payments-container .sidebar.open {
-    transform: translateX(0);
-  }
-
-  .payments-container .main-content {
-    margin-left: 0;
-    width: 100%;
   }
 }

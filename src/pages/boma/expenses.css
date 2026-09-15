@@ -231,6 +231,14 @@
   gap: 16px;
 }
 
+.manager-expense-form-body:has(.txn-receive-select.is-open) {
+  overflow: visible;
+}
+
+.manager-expense-field .txn-receive-select.is-open {
+  z-index: 40;
+}
+
 .manager-expense-form-row {
   display: grid;
   grid-template-columns: 1fr 1fr;

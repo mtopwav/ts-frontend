@@ -1,5 +1,5 @@
 import { colors } from '../../utils/colors';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useResponsiveSidebar } from '../../utils/useResponsiveSidebar';
 import SidebarBackdrop from '../../components/SidebarBackdrop';
 import { useNavigate } from 'react-router-dom';
@@ -11,6 +11,11 @@ import {
   FaTrashAlt,
   FaPrint,
   FaDownload,
+  FaFilter,
+  FaChevronDown,
+  FaTags,
+  FaCheck,
+  FaLayerGroup,
 } from 'react-icons/fa';
 import './manager-layout.css';
 import './spareparts.css';
@@ -48,6 +53,8 @@ function ManagerSpareparts() {
   const [dataLoading, setDataLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('All');
+  const [categoryMenuOpen, setCategoryMenuOpen] = useState(false);
+  const categoryFilterRef = useRef(null);
   const [showLowStockOnly, setShowLowStockOnly] = useState(false);
   const [showSoldoutTodayOnly, setShowSoldoutTodayOnly] = useState(false);
   const [spareParts, setSpareParts] = useState([]);
@@ -72,6 +79,24 @@ function ManagerSpareparts() {
     supplier: DEFAULT_SUPPLIER,
   });
   const [currentDateTime, setCurrentDateTime] = useState(getCurrentDateTime());
+
+  useEffect(() => {
+    if (!categoryMenuOpen) return undefined;
+    const onPointerDown = (event) => {
+      if (categoryFilterRef.current && !categoryFilterRef.current.contains(event.target)) {
+        setCategoryMenuOpen(false);
+      }
+    };
+    const onKeyDown = (event) => {
+      if (event.key === 'Escape') setCategoryMenuOpen(false);
+    };
+    document.addEventListener('mousedown', onPointerDown);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', onPointerDown);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [categoryMenuOpen]);
 
   useEffect(() => {
     const userData = localStorage.getItem('user') || sessionStorage.getItem('user');
@@ -203,6 +228,23 @@ function ManagerSpareparts() {
   const categoryFilterOptions = [
     ...new Set(geitaSpareParts.map((p) => p.category_name).filter(Boolean)),
   ].sort((a, b) => String(a).toLowerCase().localeCompare(String(b).toLowerCase()));
+
+  const categoryDropdownOptions = [
+    { value: 'All', label: t.allCategories || 'All Categories', hint: 'Every category' },
+    ...categoryFilterOptions.map((cat) => ({
+      value: cat,
+      label: capitalizeName(cat),
+      hint: `${capitalizeName(cat)} parts only`,
+    })),
+  ];
+
+  const activeCategoryOption =
+    categoryDropdownOptions.find((opt) => opt.value === categoryFilter) || categoryDropdownOptions[0];
+
+  const selectCategoryFilter = (value) => {
+    setCategoryFilter(value);
+    setCategoryMenuOpen(false);
+  };
 
   const filteredParts = geitaSpareParts.filter((p) => {
     const term = searchTerm.toLowerCase();
@@ -637,17 +679,55 @@ function ManagerSpareparts() {
                 className="search-input"
               />
             </div>
-            <div className="filter-box">
-              <select
-                value={categoryFilter}
-                onChange={(e) => setCategoryFilter(e.target.value)}
-                className="status-filter"
+            <div
+              className={`manager-category-filter${categoryFilter !== 'All' ? ' is-active' : ''}${
+                categoryMenuOpen ? ' is-open' : ''
+              }`}
+              ref={categoryFilterRef}
+            >
+              <button
+                type="button"
+                className="manager-category-filter-btn"
+                aria-haspopup="listbox"
+                aria-expanded={categoryMenuOpen}
+                aria-label={t.allCategories || 'Category'}
+                onClick={() => setCategoryMenuOpen((open) => !open)}
               >
-                <option value="All">{t.allCategories}</option>
-                {categoryFilterOptions.map((cat) => (
-                  <option key={cat} value={cat}>{capitalizeName(cat)}</option>
-                ))}
-              </select>
+                <FaFilter className="manager-category-filter-icon" aria-hidden="true" />
+                <span className="manager-category-filter-label">{activeCategoryOption.label}</span>
+                <FaChevronDown className="manager-category-filter-chevron" aria-hidden="true" />
+              </button>
+              {categoryMenuOpen ? (
+                <ul className="manager-category-filter-menu" role="listbox">
+                  {categoryDropdownOptions.map((opt) => {
+                    const selected = opt.value === categoryFilter;
+                    return (
+                      <li key={opt.value} role="presentation">
+                        <button
+                          type="button"
+                          role="option"
+                          aria-selected={selected}
+                          className={`manager-category-filter-option${selected ? ' is-selected' : ''}`}
+                          onClick={() => selectCategoryFilter(opt.value)}
+                        >
+                          {opt.value === 'All' ? (
+                            <FaLayerGroup className="manager-category-filter-option-icon" aria-hidden="true" />
+                          ) : (
+                            <FaTags className="manager-category-filter-option-icon" aria-hidden="true" />
+                          )}
+                          <span className="manager-category-filter-option-text">
+                            <span className="manager-category-filter-option-label">{opt.label}</span>
+                            <span className="manager-category-filter-option-hint">{opt.hint}</span>
+                          </span>
+                          {selected ? (
+                            <FaCheck className="manager-category-filter-option-check" aria-hidden="true" />
+                          ) : null}
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              ) : null}
             </div>
             <button
               type="button"

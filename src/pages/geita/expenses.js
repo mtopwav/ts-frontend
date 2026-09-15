@@ -1,5 +1,5 @@
 import { colors } from '../../utils/colors';
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useResponsiveSidebar } from '../../utils/useResponsiveSidebar';
 import SidebarBackdrop from '../../components/SidebarBackdrop';
 import { useNavigate } from 'react-router-dom';
@@ -15,9 +15,15 @@ import {
   FaTag,
   FaAlignLeft,
   FaCoins,
+  FaFilter,
+  FaChevronDown,
+  FaCheck,
+  FaList,
+  FaTags,
 } from 'react-icons/fa';
 import './manager-layout.css';
 import './expenses.css';
+import './transactions.css';
 import { getExpenses, createExpense, updateExpense } from '../../services/api';
 import { getCurrentDateTime } from '../../utils/dateTime';
 import { useTranslation } from '../../utils/useTranslation';
@@ -77,11 +83,63 @@ function ManagerExpenses() {
   const [expenses, setExpenses] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
+  const [statusMenuOpen, setStatusMenuOpen] = useState(false);
+  const statusFilterRef = useRef(null);
+  const [categoryMenuOpen, setCategoryMenuOpen] = useState(false);
+  const categorySelectRef = useRef(null);
   const [currentDateTime, setCurrentDateTime] = useState(getCurrentDateTime());
   const [showModal, setShowModal] = useState(false);
   const [editingExpense, setEditingExpense] = useState(null);
   const [saving, setSaving] = useState(false);
   const [formData, setFormData] = useState(emptyForm());
+
+  useEffect(() => {
+    if (!statusMenuOpen && !categoryMenuOpen) return undefined;
+    const onPointerDown = (event) => {
+      if (statusFilterRef.current && !statusFilterRef.current.contains(event.target)) {
+        setStatusMenuOpen(false);
+      }
+      if (categorySelectRef.current && !categorySelectRef.current.contains(event.target)) {
+        setCategoryMenuOpen(false);
+      }
+    };
+    const onKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        setStatusMenuOpen(false);
+        setCategoryMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', onPointerDown);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', onPointerDown);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [statusMenuOpen, categoryMenuOpen]);
+
+  const statusFilterOptions = [
+    { value: 'All', label: `${t.filter || 'Filter'}: All`, hint: 'Pending & paid expenses' },
+    { value: 'Pending', label: t.pendingExpenses || 'Pending', hint: 'Awaiting payment' },
+    { value: 'Paid', label: t.paidExpenses || 'Paid', hint: 'Paid expenses only' },
+  ];
+
+  const activeStatusOption =
+    statusFilterOptions.find((opt) => opt.value === statusFilter) || statusFilterOptions[0];
+
+  const categoryOptions = EXPENSE_CATEGORIES.map((c) => ({
+    value: c,
+    label: c,
+    hint: `${c} expenses`,
+  }));
+
+  const activeCategoryOption =
+    categoryOptions.find((opt) => opt.value === formData.category) || categoryOptions[0];
+
+  const statusOptionIcon = (value) => {
+    if (value === 'Paid') return <FaCheckCircle className="txn-filter-option-icon" aria-hidden="true" />;
+    if (value === 'Pending') return <FaClock className="txn-filter-option-icon" aria-hidden="true" />;
+    return <FaList className="txn-filter-option-icon" aria-hidden="true" />;
+  };
 
   useEffect(() => {
     const userData = localStorage.getItem('user') || sessionStorage.getItem('user');
@@ -197,6 +255,7 @@ function ManagerExpenses() {
   const openAddModal = () => {
     setEditingExpense(null);
     setFormData(emptyForm());
+    setCategoryMenuOpen(false);
     setShowModal(true);
   };
 
@@ -209,6 +268,7 @@ function ManagerExpenses() {
       amount: formatAmountWithCommas(Math.round(Number(expense.amount) || 0)),
       status: expense.status === 'Paid' ? 'Paid' : 'Pending',
     });
+    setCategoryMenuOpen(false);
     setShowModal(true);
   };
 
@@ -309,15 +369,53 @@ function ManagerExpenses() {
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
-            <select
-              className="status-filter"
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
+            <div
+              className={`txn-filter-dropdown${statusFilter !== 'All' ? ' is-active' : ''}${
+                statusMenuOpen ? ' is-open' : ''
+              }`}
+              ref={statusFilterRef}
             >
-              <option value="All">{t.filter || 'Filter'}: All</option>
-              <option value="Pending">{t.pendingExpenses || 'Pending'}</option>
-              <option value="Paid">{t.paidExpenses || 'Paid'}</option>
-            </select>
+              <button
+                type="button"
+                className="txn-filter-btn"
+                aria-haspopup="listbox"
+                aria-expanded={statusMenuOpen}
+                aria-label={t.status || 'Status'}
+                onClick={() => setStatusMenuOpen((open) => !open)}
+              >
+                <FaFilter className="txn-filter-icon" aria-hidden="true" />
+                <span className="txn-filter-label">{activeStatusOption.label}</span>
+                <FaChevronDown className="txn-filter-chevron" aria-hidden="true" />
+              </button>
+              {statusMenuOpen ? (
+                <ul className="txn-filter-menu" role="listbox">
+                  {statusFilterOptions.map((opt) => {
+                    const selected = opt.value === statusFilter;
+                    return (
+                      <li key={opt.value} role="presentation">
+                        <button
+                          type="button"
+                          role="option"
+                          aria-selected={selected}
+                          className={`txn-filter-option${selected ? ' is-selected' : ''}`}
+                          onClick={() => {
+                            setStatusFilter(opt.value);
+                            setStatusMenuOpen(false);
+                          }}
+                        >
+                          {statusOptionIcon(opt.value)}
+                          <span className="txn-filter-option-text">
+                            <span className="txn-filter-option-label">{opt.label}</span>
+                            <span className="txn-filter-option-hint">{opt.hint}</span>
+                          </span>
+                          {selected ? <FaCheck className="txn-filter-option-check" aria-hidden="true" /> : null}
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              ) : null}
+            </div>
             <button type="button" className="action-btn add" onClick={openAddModal}>
               <FaPlus aria-hidden /> {t.addExpense || 'Add Expense'}
             </button>
@@ -486,22 +584,64 @@ function ManagerExpenses() {
                   </div>
 
                   <div className="manager-expense-field">
-                    <label htmlFor="geita-expense-category">
+                    <label id="geita-expense-category-label">
                       <FaTag aria-hidden /> {t.expenseCategory || 'Category'} *
                     </label>
-                    <select
-                      id="geita-expense-category"
-                      required
-                      className="manager-expense-input"
-                      value={formData.category}
-                      onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                    <div
+                      className={`txn-receive-select${categoryMenuOpen ? ' is-open' : ''}${
+                        formData.category ? ' has-value' : ''
+                      }`}
+                      ref={categorySelectRef}
                     >
-                      {EXPENSE_CATEGORIES.map((c) => (
-                        <option key={c} value={c}>
-                          {c}
-                        </option>
-                      ))}
-                    </select>
+                      <button
+                        type="button"
+                        id="geita-expense-category"
+                        className="txn-receive-select-trigger"
+                        aria-haspopup="listbox"
+                        aria-expanded={categoryMenuOpen}
+                        aria-labelledby="geita-expense-category-label"
+                        aria-required="true"
+                        onClick={() => setCategoryMenuOpen((open) => !open)}
+                      >
+                        <FaTags className="txn-filter-option-icon" aria-hidden="true" />
+                        <span className="txn-receive-select-value">{activeCategoryOption.label}</span>
+                        <FaChevronDown className="txn-receive-select-chevron" aria-hidden="true" />
+                      </button>
+                      {categoryMenuOpen ? (
+                        <ul
+                          className="txn-receive-select-menu"
+                          role="listbox"
+                          aria-labelledby="geita-expense-category-label"
+                        >
+                          {categoryOptions.map((opt) => {
+                            const selected = opt.value === formData.category;
+                            return (
+                              <li key={opt.value} role="presentation">
+                                <button
+                                  type="button"
+                                  role="option"
+                                  aria-selected={selected}
+                                  className={`txn-receive-select-option${selected ? ' is-selected' : ''}`}
+                                  onClick={() => {
+                                    setFormData({ ...formData, category: opt.value });
+                                    setCategoryMenuOpen(false);
+                                  }}
+                                >
+                                  <FaTag className="txn-filter-option-icon" aria-hidden="true" />
+                                  <span className="txn-receive-select-option-text">
+                                    <span className="txn-receive-select-option-label">{opt.label}</span>
+                                    <span className="txn-receive-select-option-hint">{opt.hint}</span>
+                                  </span>
+                                  {selected ? (
+                                    <FaCheck className="txn-receive-select-option-check" aria-hidden="true" />
+                                  ) : null}
+                                </button>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      ) : null}
+                    </div>
                   </div>
                 </div>
 

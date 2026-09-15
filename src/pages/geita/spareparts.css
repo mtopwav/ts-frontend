@@ -27,6 +27,184 @@
   width: 100%;
 }
 
+.manager-category-filter {
+  position: relative;
+  flex: 0 1 240px;
+  min-width: 180px;
+  z-index: 2;
+}
+
+.manager-category-filter.is-open {
+  z-index: 40;
+}
+
+.manager-category-filter-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 40px;
+  padding: 8px 12px;
+  border: none;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #6c757d, #495057);
+  color: #fff;
+  font-family: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transition: box-shadow 0.2s ease, background 0.2s ease, transform 0.15s ease;
+}
+
+.manager-category-filter-btn:hover {
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.16);
+  transform: translateY(-1px);
+}
+
+.manager-category-filter.is-open .manager-category-filter-btn,
+.manager-category-filter-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(86, 39, 49, 0.25);
+}
+
+.manager-category-filter.is-active .manager-category-filter-btn {
+  background: linear-gradient(135deg, #562731, #3d1c23);
+}
+
+.manager-category-filter-icon {
+  flex-shrink: 0;
+  font-size: 0.8125rem;
+}
+
+.manager-category-filter-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+}
+
+.manager-category-filter-chevron {
+  flex-shrink: 0;
+  font-size: 0.7rem;
+  opacity: 0.9;
+  transition: transform 0.2s ease;
+}
+
+.manager-category-filter.is-open .manager-category-filter-chevron {
+  transform: rotate(180deg);
+}
+
+.manager-category-filter-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  z-index: 60;
+  min-width: 240px;
+  max-height: 280px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  background: var(--bg-secondary, #fff);
+  border: 1px solid var(--border-color, #dde3ea);
+  border-radius: 10px;
+  box-shadow: 0 10px 28px rgba(86, 39, 49, 0.14);
+  animation: managerCategoryMenuIn 0.16s ease;
+}
+
+@keyframes managerCategoryMenuIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.manager-category-filter-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-primary, #222);
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background-color 0.2s ease,
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    color 0.2s ease;
+}
+
+.manager-category-filter-option:hover,
+.manager-category-filter-option:focus-visible {
+  outline: none;
+  background: linear-gradient(135deg, rgba(86, 39, 49, 0.12), rgba(86, 39, 49, 0.06));
+  transform: translateX(3px);
+  box-shadow: inset 3px 0 0 #562731;
+}
+
+.manager-category-filter-option.is-selected {
+  background: rgba(86, 39, 49, 0.1);
+  box-shadow: inset 3px 0 0 #562731;
+}
+
+.manager-category-filter-option-icon {
+  flex-shrink: 0;
+  color: #562731;
+  font-size: 0.875rem;
+}
+
+.manager-category-filter-option-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.manager-category-filter-option-label {
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.manager-category-filter-option-hint {
+  font-size: 0.72rem;
+  color: var(--text-muted, #777);
+  line-height: 1.3;
+}
+
+.manager-category-filter-option:hover .manager-category-filter-option-hint,
+.manager-category-filter-option.is-selected .manager-category-filter-option-hint {
+  color: #562731;
+}
+
+.manager-category-filter-option-check {
+  flex-shrink: 0;
+  color: var(--primary, #ff0000);
+  font-size: 0.75rem;
+}
+
+.dark-theme .manager-category-filter-menu {
+  background: var(--bg-secondary);
+  border-color: var(--border-color);
+}
+
+.dark-theme .manager-category-filter-option-label {
+  color: var(--text);
+}
+
 .payments-container.geita-portal .manager-spareparts-page .stats-row.manager-stats-row {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -114,7 +292,8 @@
     min-height: 280px;
   }
 
-  .manager-spareparts-action-bar .filter-box {
+  .manager-spareparts-action-bar .filter-box,
+  .manager-category-filter {
     flex: 1 1 100%;
     min-width: 0;
   }

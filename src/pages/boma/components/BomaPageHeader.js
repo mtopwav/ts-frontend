@@ -44,8 +44,9 @@ export default function BomaPageHeader({
           <FaUser className="user-icon" aria-hidden />
           <span className="user-name">{capitalizeName(bomaUserName(user))}</span>
         </div>
-        <button type="button" className="logout-btn" onClick={onLogout}>
-          <FaSignOutAlt aria-hidden /> {t.logout}
+        <button type="button" className="logout-btn" onClick={onLogout} title={t.logout} aria-label={t.logout}>
+          <FaSignOutAlt aria-hidden />
+          <span className="logout-label">{t.logout}</span>
         </button>
       </div>
     </header>

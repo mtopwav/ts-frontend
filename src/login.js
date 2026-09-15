@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { FaEye, FaEyeSlash } from 'react-icons/fa';
+import React, { useState, useEffect, useRef } from 'react';
+import { FaEye, FaEyeSlash, FaChevronDown, FaCheck } from 'react-icons/fa';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { login } from './services/api';
 import './login.css';
@@ -29,6 +29,8 @@ function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [branchMenuOpen, setBranchMenuOpen] = useState(false);
+  const branchSelectRef = useRef(null);
 
   useEffect(() => {
     if (location.state?.idleLogout) {
@@ -39,6 +41,24 @@ function Login() {
       navigate(location.pathname, { replace: true, state: {} });
     }
   }, [location.state, location.pathname, navigate, t.sessionExpiredIdle]);
+
+  useEffect(() => {
+    if (!branchMenuOpen) return undefined;
+    const handleOutside = (event) => {
+      if (branchSelectRef.current && !branchSelectRef.current.contains(event.target)) {
+        setBranchMenuOpen(false);
+      }
+    };
+    const handleEscape = (event) => {
+      if (event.key === 'Escape') setBranchMenuOpen(false);
+    };
+    document.addEventListener('mousedown', handleOutside);
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      document.removeEventListener('mousedown', handleOutside);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [branchMenuOpen]);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -52,6 +72,7 @@ function Login() {
   const switchToAdminLogin = () => {
     setIsAdminLogin(true);
     setError('');
+    setBranchMenuOpen(false);
     setFormData((prev) => ({ ...prev, location: '' }));
   };
 
@@ -60,6 +81,18 @@ function Login() {
     setError('');
     setFormData((prev) => ({ ...prev, username: '' }));
   };
+
+  const selectBranch = (loc) => {
+    setFormData((prev) => ({ ...prev, location: loc }));
+    setBranchMenuOpen(false);
+    if (error) setError('');
+  };
+
+  const branchLabel = formData.location
+    ? formData.location === 'Boma'
+      ? t.bomaBranch
+      : t.geitaBranch
+    : t.selectLocation;
 
   const redirectAfterLogin = (userData) => {
     if (userData.userType === 'employee') {
@@ -200,24 +233,53 @@ function Login() {
                 </div>
               ) : (
                 <div className="form-group">
-                  <label htmlFor="location" className="form-label">
+                  <label id="branch-select-label" className="form-label">
                     {t.location}
                   </label>
-                  <select
-                    id="location"
-                    name="location"
-                    className="form-control login-select"
-                    value={formData.location}
-                    onChange={handleChange}
-                    required
+                  <div
+                    className={`login-select-wrap${branchMenuOpen ? ' is-open' : ''}${formData.location ? ' has-value' : ''}`}
+                    ref={branchSelectRef}
                   >
-                    <option value="">{t.selectLocation}</option>
-                    {EMPLOYEE_LOCATIONS.map((loc) => (
-                      <option key={loc} value={loc}>
-                        {loc === 'Boma' ? t.bomaBranch : t.geitaBranch}
-                      </option>
-                    ))}
-                  </select>
+                    <button
+                      type="button"
+                      id="location"
+                      className="login-select login-select-trigger"
+                      aria-haspopup="listbox"
+                      aria-expanded={branchMenuOpen}
+                      aria-labelledby="branch-select-label"
+                      onClick={() => setBranchMenuOpen((open) => !open)}
+                    >
+                      <span className="login-select-value">{branchLabel}</span>
+                      <FaChevronDown className="login-select-chevron" aria-hidden="true" />
+                    </button>
+                    {branchMenuOpen && (
+                      <ul className="login-select-menu" role="listbox" aria-labelledby="branch-select-label">
+                        {EMPLOYEE_LOCATIONS.map((loc) => {
+                          const selected = formData.location === loc;
+                          const label = loc === 'Boma' ? t.bomaBranch : t.geitaBranch;
+                          return (
+                            <li key={loc} role="presentation">
+                              <button
+                                type="button"
+                                role="option"
+                                aria-selected={selected}
+                                className={`login-select-option${selected ? ' is-selected' : ''}`}
+                                onClick={() => selectBranch(loc)}
+                              >
+                                <span className="login-select-option-text">
+                                  <span className="login-select-option-label">{label}</span>
+                                  <span className="login-select-option-hint">{loc}</span>
+                                </span>
+                                {selected ? (
+                                  <FaCheck className="login-select-option-check" aria-hidden="true" />
+                                ) : null}
+                              </button>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    )}
+                  </div>
                 </div>
               )}
 

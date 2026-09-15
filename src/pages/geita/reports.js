@@ -584,7 +584,12 @@ function ManagerReports() {
       (sum, e) => sum + (Number(e.amount) || 0),
       0
     );
-    const totalTodayIncome = (Number(printSummary.totalAmount) || 0) - totalTodayExpenses;
+    const totalRefundedAmount = printedRows.reduce(
+      (sum, p) => sum + Math.max(0, Number(p.return_amount) || 0),
+      0
+    );
+    const totalTodayIncome =
+      (Number(printSummary.totalAmount) || 0) - totalTodayExpenses - totalRefundedAmount;
 
     const tableHeader = `
             <thead>
@@ -597,13 +602,14 @@ function ManagerReports() {
                 <th class="tc">Payment method</th>
                 <th class="tr">Amount received (TZS)</th>
                 <th class="tr">Amount remain (TZS)</th>
+                <th class="tr">Amount refunded (TZS)</th>
                 <th class="tl">Status</th>
               </tr>
             </thead>`;
 
     const rowsHtml =
       printedRows.length === 0
-        ? '<tbody><tr><td colspan="9" style="text-align:center;padding:12px;">No transactions found</td></tr></tbody>'
+        ? '<tbody><tr><td colspan="10" style="text-align:center;padding:12px;">No transactions found</td></tr></tbody>'
         : '<tbody>' +
           printedRows
             .map((p, idx) => {
@@ -628,6 +634,7 @@ function ManagerReports() {
                         (Number(p.discount_amount) || 0) -
                         (Number(p.amount_received) || 0)
                     );
+              const amountRefunded = Math.max(0, Number(p.return_amount) || 0);
               return `
                 <tr>
                   <td class="tc">${idx + 1}</td>
@@ -638,6 +645,7 @@ function ManagerReports() {
                   <td class="tc">${paymentMethodCell}</td>
                   <td class="tr">${formatCurrency(amountReceivedSumForPrintRow(p))}</td>
                   <td class="tr">${formatCurrency(amountRemain)}</td>
+                  <td class="tr">${formatCurrency(amountRefunded)}</td>
                   <td class="tl">${printableStatus}</td>
                 </tr>
               `;
@@ -832,6 +840,7 @@ function ManagerReports() {
             <div class="tax-inv-footer-row"><label>Total Loan paid (TZS):</label> ${formatCurrency(printSummary.loanPaidTotal)}</div>
             <div class="tax-inv-footer-row"><label>Total amount received (TZS):</label> ${formatCurrency(printSummary.totalAmount)}</div>
             <div class="tax-inv-footer-row"><label>Total today expenses (TZS):</label> ${formatCurrency(totalTodayExpenses)}</div>
+            <div class="tax-inv-footer-row"><label>Total refunded amount (TZS):</label> ${formatCurrency(totalRefundedAmount)}</div>
             <div class="tax-inv-footer-row"><label>Total today's income (TZS):</label> <strong>${formatCurrency(totalTodayIncome)}</strong></div>
           </div>
 

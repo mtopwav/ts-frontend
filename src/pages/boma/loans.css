@@ -17,6 +17,10 @@
   min-width: min(100%, 200px);
 }
 
+.manager-time-filter-group .txn-filter-dropdown {
+  flex-shrink: 0;
+}
+
 .manager-date-range-inputs {
   display: flex;
   flex-wrap: wrap;
@@ -290,6 +294,17 @@
   background: #0b5ed7;
   transform: translateY(-2px);
   box-shadow: 0 4px 8px rgba(13, 110, 253, 0.3);
+}
+
+.action-btn.return {
+  background: #6c757d;
+  color: var(--white);
+}
+
+.action-btn.return:hover {
+  background: #5a6268;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(108, 117, 125, 0.3);
 }
 
 .manager-loans-summary-row {

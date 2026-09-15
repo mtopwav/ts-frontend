@@ -389,9 +389,9 @@ function Dashboard() {
   }, [sparePartsList]);
 
   /**
-   * Amount received + profit from the payments table columns.
-   * Received: Σ amount_received (Approved only).
-   * Profit: Σ profit column (Approved only — set on approve).
+   * Amount received + profit after sale generation.
+   * Received: Σ amount_received (Approved).
+   * Profit: Σ qty × (wholesale|retail sell price − buying price) per sold line.
    */
   const transactionMetrics = useMemo(() => {
     const parseNum = (v) => {
@@ -400,18 +400,72 @@ function Dashboard() {
       return Number.isFinite(n) ? n : 0;
     };
 
+    const spareById = new Map();
+    for (const part of sparePartsList) {
+      if (part?.id == null) continue;
+      spareById.set(String(part.id), part);
+    }
+
+    const getItemSoldQty = (item) => {
+      if (item?.original_quantity != null) {
+        return Math.max(0, parseInt(item.original_quantity, 10) || 0);
+      }
+      if (item?.returned_quantity != null) {
+        return Math.max(
+          0,
+          (parseInt(item.quantity, 10) || 0) + (parseInt(item.returned_quantity, 10) || 0)
+        );
+      }
+      return Math.max(0, parseInt(item?.quantity, 10) || 0);
+    };
+
+    const getPaymentItems = (p) => {
+      if (Array.isArray(p?.items) && p.items.length > 0) return p.items;
+      if (p?.sparepart_id != null) {
+        return [
+          {
+            sparepart_id: p.sparepart_id,
+            quantity: p.quantity,
+            unit_price: p.unit_price ?? p.price,
+          },
+        ];
+      }
+      return [];
+    };
+
     let received = 0;
     let profit = 0;
 
     for (const p of payments) {
       if (String(p.status || '').trim() !== 'Approved') continue;
       received += parseNum(p.amount_received);
-      // Use payments.profit column only (not line-item / spare-part math)
-      profit += parseNum(p.profit);
+
+      const priceType = String(p.price_type || 'retail').trim().toLowerCase();
+      const items = getPaymentItems(p);
+
+      for (const item of items) {
+        const sparepartId = item.sparepart_id ?? item.sparepartId;
+        const qty = getItemSoldQty(item);
+        if (sparepartId == null || qty <= 0) continue;
+
+        const sp = spareById.get(String(sparepartId)) || {};
+        const buy = parseNum(sp.buying_price ?? sp.buyingPrice);
+        let sell = parseNum(item.unit_price ?? item.price ?? item.unitPrice);
+        if (sell <= 0) {
+          sell =
+            priceType === 'wholesale'
+              ? parseNum(sp.wholesale_price ?? sp.wholesalePrice)
+              : parseNum(sp.retail_price ?? sp.retailPrice);
+        }
+        profit += qty * (sell - buy);
+      }
     }
 
-    return { received, profit };
-  }, [payments]);
+    return {
+      received,
+      profit: Math.round(profit * 100) / 100,
+    };
+  }, [payments, sparePartsList]);
 
   /** Total sold-out quantity across all spare parts. */
   const totalSoldOutSpareparts = useMemo(() => {

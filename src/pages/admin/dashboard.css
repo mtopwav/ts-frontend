@@ -14,7 +14,7 @@
   width: 260px;
   background: linear-gradient(180deg, var(--sidebar-bg-start, var(--primary)) 0%, var(--sidebar-bg-end, var(--primary-dark)) 100%);
   color: var(--sidebar-text, white);
-  transition: all 0.3s ease;
+  transition: width 0.3s ease, transform 0.34s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.3s ease;
   position: fixed;
   height: 100vh;
   overflow-y: auto;
@@ -455,21 +455,8 @@
   transition: color 0.3s ease;
 }
 
-/* Responsive Design */
+/* Responsive — mobile drawer/layout owned by styles/mobile.css */
 @media (max-width: 768px) {
-  .sidebar {
-    width: 70px;
-  }
-
-  .sidebar.open {
-    width: 260px;
-    z-index: 1001;
-  }
-
-  .main-content {
-    margin-left: 70px;
-  }
-
   .dashboard-row {
     grid-template-columns: 1fr;
   }
@@ -481,36 +468,11 @@
   .quick-actions {
     grid-template-columns: 1fr;
   }
-
-  .dashboard-header {
-    padding: 15px 20px;
-  }
-
-  .page-title {
-    font-size: 1.4rem;
-  }
-
-  .user-name {
-    display: none;
-  }
 }
 
 @media (max-width: 480px) {
   .dashboard-content {
-    padding: 15px;
-  }
-
-  .header-right {
-    gap: 10px;
-  }
-
-  .logout-btn {
-    padding: 8px 15px;
-    font-size: 0.9rem;
-  }
-
-  .logout-btn span {
-    display: none;
+    padding: 12px;
   }
 }
 

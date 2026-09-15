@@ -1,5 +1,5 @@
 import { colors } from '../../utils/colors';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useResponsiveSidebar } from '../../utils/useResponsiveSidebar';
 import SidebarBackdrop from '../../components/SidebarBackdrop';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
@@ -25,6 +25,10 @@ import {
   FaChartBar,
   FaTrash,
   FaWallet,
+  FaChevronDown,
+  FaMapMarkerAlt,
+  FaCreditCard,
+  FaUndo,
 } from 'react-icons/fa';
 import './dashboard.css';
 import './transactions.css';
@@ -60,6 +64,8 @@ function AdminTransactions() {
   const [showViewModal, setShowViewModal] = useState(false);
   const [logoDataUrl, setLogoDataUrl] = useState(null);
   const [deletingPaymentId, setDeletingPaymentId] = useState(null);
+  const [openFilter, setOpenFilter] = useState(null);
+  const filtersRef = useRef(null);
 
   useEffect(() => {
     const userData = localStorage.getItem('user') || sessionStorage.getItem('user');
@@ -98,6 +104,23 @@ function AdminTransactions() {
     };
     load();
   }, [navigate]);
+
+  useEffect(() => {
+    const onPointerDown = (event) => {
+      if (filtersRef.current && !filtersRef.current.contains(event.target)) {
+        setOpenFilter(null);
+      }
+    };
+    const onKeyDown = (event) => {
+      if (event.key === 'Escape') setOpenFilter(null);
+    };
+    document.addEventListener('mousedown', onPointerDown);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', onPointerDown);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, []);
 
   // Load logo as data URL for print document (ensures logo appears in new window)
   useEffect(() => {
@@ -222,6 +245,92 @@ function AdminTransactions() {
         .map((p) => p.payment_method || 'Unknown')
         .filter((m) => m && m.trim() !== '')
     )
+  );
+
+  const paymentMethodFilterOptions = [
+    { value: 'All', label: t.allPaymentMethods || 'All Payment Methods', hint: 'Every payment method' },
+    ...uniquePaymentMethods.map((method) => ({
+      value: method,
+      label: method,
+      hint: `${method} payments only`,
+    })),
+  ];
+
+  const statusFilterOptions = [
+    { value: 'All', label: t.allStatus || 'All Status', hint: 'All transaction statuses' },
+    { value: 'Pending', label: t.pending || 'Pending', hint: 'Awaiting approval' },
+    { value: 'Approved', label: t.approved || 'Approved', hint: 'Approved transactions' },
+    { value: 'Rejected', label: t.rejected || 'Rejected', hint: 'Rejected transactions' },
+    { value: 'Returned', label: 'Returned', hint: 'Refunded / returned' },
+  ];
+
+  const branchFilterOptions = [
+    { value: 'All', label: t.allBranches || 'All Branches', hint: 'Boma & Geita' },
+    { value: BRANCH_BOMA, label: t.bomaBranch || 'Boma Branch', hint: 'Boma transactions only' },
+    { value: BRANCH_GEITA, label: t.geitaBranch || 'Geita Branch', hint: 'Geita transactions only' },
+  ];
+
+  const activePaymentMethodOption =
+    paymentMethodFilterOptions.find((opt) => opt.value === paymentMethodFilter) ||
+    paymentMethodFilterOptions[0];
+  const activeStatusOption =
+    statusFilterOptions.find((opt) => opt.value === statusFilter) || statusFilterOptions[0];
+  const activeBranchOption =
+    branchFilterOptions.find((opt) => opt.value === branchFilter) || branchFilterOptions[0];
+
+  const renderFilterDropdown = ({
+    id,
+    keyName,
+    activeOption,
+    options,
+    isActive,
+    onSelect,
+    icon,
+  }) => (
+    <div
+      className={`txn-filter-dropdown${isActive ? ' is-active' : ''}${
+        openFilter === keyName ? ' is-open' : ''
+      }`}
+    >
+      <button
+        type="button"
+        id={id}
+        className="txn-filter-btn"
+        onClick={() => setOpenFilter((prev) => (prev === keyName ? null : keyName))}
+        aria-haspopup="listbox"
+        aria-expanded={openFilter === keyName}
+      >
+        <FaFilter className="txn-filter-icon" aria-hidden="true" />
+        <span className="txn-filter-label">{activeOption.label}</span>
+        <FaChevronDown className="txn-filter-chevron" aria-hidden="true" />
+      </button>
+      {openFilter === keyName ? (
+        <ul className="txn-filter-menu" role="listbox">
+          {options.map((opt) => (
+            <li key={opt.value} role="presentation">
+              <button
+                type="button"
+                role="option"
+                aria-selected={activeOption.value === opt.value}
+                className={`txn-filter-option${
+                  activeOption.value === opt.value ? ' is-selected' : ''
+                }`}
+                onClick={() => {
+                  onSelect(opt.value);
+                  setOpenFilter(null);
+                }}
+              >
+                {icon}
+                <span className="txn-filter-option-text">
+                  <span className="txn-filter-option-label">{opt.label}</span>
+                  <span className="txn-filter-option-hint">{opt.hint}</span>
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </div>
   );
 
   const getAmountRemain = (p) => {
@@ -722,48 +831,43 @@ function AdminTransactions() {
           <div className="transactions-section">
             <div className="section-header">
               <h2>{t.transactionRecords}</h2>
-              <div className="section-actions">
-                <div className="filter-group">
-                  <FaFilter className="filter-icon" />
-                  <select className="filter-select" value={paymentMethodFilter} onChange={(e) => setPaymentMethodFilter(e.target.value)}>
-                    <option value="All">{t.allPaymentMethods}</option>
-                    {uniquePaymentMethods.map((method) => (
-                      <option key={method} value={method}>
-                        {method}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="filter-group">
-                  <FaFilter className="filter-icon" />
-                  <select
-                    className="filter-select"
-                    value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value)}
-                    title={t.status || 'Status'}
-                    aria-label={t.status || 'Status'}
-                  >
-                    <option value="All">{t.allStatus || 'All Status'}</option>
-                    <option value="Pending">{t.pending || 'Pending'}</option>
-                    <option value="Approved">{t.approved || 'Approved'}</option>
-                    <option value="Rejected">{t.rejected || 'Rejected'}</option>
-                    <option value="Returned">Returned</option>
-                  </select>
-                </div>
-                <div className="filter-group">
-                  <FaFilter className="filter-icon" />
-                  <select
-                    className="filter-select"
-                    value={branchFilter}
-                    onChange={(e) => setBranchFilter(e.target.value)}
-                    title={t.location}
-                    aria-label={t.location}
-                  >
-                    <option value="All">{t.allBranches}</option>
-                    <option value={BRANCH_BOMA}>{t.bomaBranch}</option>
-                    <option value={BRANCH_GEITA}>{t.geitaBranch}</option>
-                  </select>
-                </div>
+              <div className="section-actions" ref={filtersRef}>
+                {renderFilterDropdown({
+                  id: 'txn-payment-method-filter',
+                  keyName: 'paymentMethod',
+                  activeOption: activePaymentMethodOption,
+                  options: paymentMethodFilterOptions,
+                  isActive: paymentMethodFilter !== 'All',
+                  onSelect: setPaymentMethodFilter,
+                  icon: <FaCreditCard className="txn-filter-option-icon" aria-hidden="true" />,
+                })}
+                {renderFilterDropdown({
+                  id: 'txn-status-filter',
+                  keyName: 'status',
+                  activeOption: activeStatusOption,
+                  options: statusFilterOptions,
+                  isActive: statusFilter !== 'All',
+                  onSelect: setStatusFilter,
+                  icon:
+                    statusFilter === 'Approved' ? (
+                      <FaCheckCircle className="txn-filter-option-icon" aria-hidden="true" />
+                    ) : statusFilter === 'Rejected' ? (
+                      <FaTimesCircle className="txn-filter-option-icon" aria-hidden="true" />
+                    ) : statusFilter === 'Returned' ? (
+                      <FaUndo className="txn-filter-option-icon" aria-hidden="true" />
+                    ) : (
+                      <FaClock className="txn-filter-option-icon" aria-hidden="true" />
+                    ),
+                })}
+                {renderFilterDropdown({
+                  id: 'txn-branch-filter',
+                  keyName: 'branch',
+                  activeOption: activeBranchOption,
+                  options: branchFilterOptions,
+                  isActive: branchFilter !== 'All',
+                  onSelect: setBranchFilter,
+                  icon: <FaMapMarkerAlt className="txn-filter-option-icon" aria-hidden="true" />,
+                })}
                 <button
                   type="button"
                   className={'admin-operation-date-btn' + (showLoanOnly ? ' active' : '')}
@@ -778,7 +882,10 @@ function AdminTransactions() {
                     'admin-operation-date-btn' +
                     (operationDateFilterOpen || dateFrom || dateTo ? ' active' : '')
                   }
-                  onClick={() => setOperationDateFilterOpen((o) => !o)}
+                  onClick={() => {
+                    setOpenFilter(null);
+                    setOperationDateFilterOpen((o) => !o);
+                  }}
                   title="Filter by operation date (approval or creation)"
                 >
                   <FaCalendarAlt aria-hidden />

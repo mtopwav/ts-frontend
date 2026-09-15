@@ -450,10 +450,10 @@ export const createLoanFromPayment = (paymentId, status = 'Pending', overrides =
   });
 };
 
-export const returnPayment = (id, { return_amount }) => {
+export const returnPayment = (id, { return_amount, items }) => {
   return apiRequest(`/payments/${id}/return`, {
     method: "PUT",
-    body: { return_amount }
+    body: { return_amount, items }
   });
 };
 

@@ -39,10 +39,12 @@ import {
   FaMoneyBillWave,
   FaBell,
   FaPrint,
+  FaWallet,
   FaFilter,
   FaChevronDown,
   FaMapMarkerAlt,
-  FaWallet
+  FaGlobeAfrica,
+  FaCheck,
 } from 'react-icons/fa';
 import './spareparts.css';
 import logo from '../../images/logo1.png';
@@ -74,7 +76,7 @@ function SpareParts() {
   const [searchTerm, setSearchTerm] = useState('');
   const [showLowStockOnly, setShowLowStockOnly] = useState(false);
   const [locationFilter, setLocationFilter] = useState('');
-  const [locationFilterOpen, setLocationFilterOpen] = useState(false);
+  const [locationMenuOpen, setLocationMenuOpen] = useState(false);
   const locationFilterRef = useRef(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
@@ -104,6 +106,24 @@ function SpareParts() {
   });
   const [categories, setCategories] = useState([]);
   const [brands, setBrands] = useState([]);
+
+  useEffect(() => {
+    if (!locationMenuOpen) return undefined;
+    const onPointerDown = (event) => {
+      if (locationFilterRef.current && !locationFilterRef.current.contains(event.target)) {
+        setLocationMenuOpen(false);
+      }
+    };
+    const onKeyDown = (event) => {
+      if (event.key === 'Escape') setLocationMenuOpen(false);
+    };
+    document.addEventListener('mousedown', onPointerDown);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', onPointerDown);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [locationMenuOpen]);
 
   // Function to fetch categories from database
   const fetchCategories = async () => {
@@ -264,16 +284,6 @@ function SpareParts() {
       window.removeEventListener('unviewedOperationsChanged', updateNotificationCount);
     };
   }, [navigate]);
-
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (locationFilterRef.current && !locationFilterRef.current.contains(event.target)) {
-        setLocationFilterOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
 
   if (loading) {
     return <PageLoader message={t.loading || 'Loading...'} />;
@@ -662,7 +672,7 @@ function SpareParts() {
   const sparePartLocations = ['Boma', 'Geita'];
 
   const locationFilterOptions = [
-    { value: '', label: 'All Locations', hint: 'Boma & Geita' },
+    { value: '', label: 'All Locations', hint: 'Boma & Geita stock' },
     { value: 'Boma', label: 'Boma', hint: 'Boma branch only' },
     { value: 'Geita', label: 'Geita', hint: 'Geita branch only' },
   ];
@@ -670,9 +680,9 @@ function SpareParts() {
   const activeLocationOption =
     locationFilterOptions.find((opt) => opt.value === locationFilter) || locationFilterOptions[0];
 
-  const handleLocationFilterSelect = (value) => {
+  const selectLocationFilter = (value) => {
     setLocationFilter(value);
-    setLocationFilterOpen(false);
+    setLocationMenuOpen(false);
   };
 
   const buildManagerStyleInventoryDocument = () => {
@@ -1096,43 +1106,56 @@ function SpareParts() {
                 />
               </div>
               <div
-                className={`location-filter-dropdown${locationFilter ? ' location-filter-active' : ''}${locationFilterOpen ? ' is-open' : ''}`}
+                className={`location-filter-dropdown${locationFilter ? ' location-filter-active' : ''}${
+                  locationMenuOpen ? ' is-open' : ''
+                }`}
                 ref={locationFilterRef}
               >
                 <button
                   type="button"
                   id="spareparts-location-filter"
                   className="location-filter-btn"
-                  onClick={() => setLocationFilterOpen((open) => !open)}
                   aria-haspopup="listbox"
-                  aria-expanded={locationFilterOpen}
-                  aria-label={`${t.location} filter`}
+                  aria-expanded={locationMenuOpen}
+                  aria-label={t.location || 'Location'}
+                  title="Filter spare parts and print reports by branch location"
+                  onClick={() => setLocationMenuOpen((open) => !open)}
                 >
                   <FaFilter className="location-filter-icon" aria-hidden="true" />
                   <span className="location-filter-label">{activeLocationOption.label}</span>
                   <FaChevronDown className="location-filter-chevron" aria-hidden="true" />
                 </button>
-                {locationFilterOpen && (
-                  <ul className="location-filter-menu" role="listbox" aria-label={`${t.location} options`}>
-                    {locationFilterOptions.map((opt) => (
-                      <li key={opt.value || 'all'} role="presentation">
-                        <button
-                          type="button"
-                          role="option"
-                          aria-selected={locationFilter === opt.value}
-                          className={`location-filter-option${locationFilter === opt.value ? ' is-selected' : ''}`}
-                          onClick={() => handleLocationFilterSelect(opt.value)}
-                        >
-                          <FaMapMarkerAlt className="location-filter-option-icon" aria-hidden="true" />
-                          <span className="location-filter-option-text">
-                            <span className="location-filter-option-label">{opt.label}</span>
-                            <span className="location-filter-option-hint">{opt.hint}</span>
-                          </span>
-                        </button>
-                      </li>
-                    ))}
+                {locationMenuOpen ? (
+                  <ul className="location-filter-menu" role="listbox" aria-label={t.location || 'Location'}>
+                    {locationFilterOptions.map((opt) => {
+                      const selected = opt.value === locationFilter;
+                      return (
+                        <li key={opt.value || 'all'} role="presentation">
+                          <button
+                            type="button"
+                            role="option"
+                            aria-selected={selected}
+                            className={`location-filter-option${selected ? ' is-selected' : ''}`}
+                            onClick={() => selectLocationFilter(opt.value)}
+                          >
+                            {opt.value ? (
+                              <FaMapMarkerAlt className="location-filter-option-icon" aria-hidden="true" />
+                            ) : (
+                              <FaGlobeAfrica className="location-filter-option-icon" aria-hidden="true" />
+                            )}
+                            <span className="location-filter-option-text">
+                              <span className="location-filter-option-label">{opt.label}</span>
+                              <span className="location-filter-option-hint">{opt.hint}</span>
+                            </span>
+                            {selected ? (
+                              <FaCheck className="location-filter-option-check" aria-hidden="true" />
+                            ) : null}
+                          </button>
+                        </li>
+                      );
+                    })}
                   </ul>
-                )}
+                ) : null}
               </div>
             </div>
             <div className="action-bar-actions">
