@@ -19,6 +19,8 @@ import {
   FaChartBar,
   FaPrint,
   FaDownload,
+  FaEye,
+  FaTimes,
   FaSearch,
   FaFileInvoiceDollar,
   FaMoneyBillWave,
@@ -79,6 +81,8 @@ function AdminReports() {
   const [searchTerm, setSearchTerm] = useState('');
   const [locationFilter, setLocationFilter] = useState('');
   const [locationMenuOpen, setLocationMenuOpen] = useState(false);
+  const [viewReportHtml, setViewReportHtml] = useState('');
+  const [viewReportTitle, setViewReportTitle] = useState('Report');
   const locationSelectRef = useRef(null);
 
   const locationOptions = useMemo(
@@ -107,6 +111,22 @@ function AdminReports() {
       document.removeEventListener('keydown', onKeyDown);
     };
   }, [locationMenuOpen]);
+
+  useEffect(() => {
+    if (!viewReportHtml) return undefined;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const onKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        setViewReportHtml('');
+      }
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [viewReportHtml]);
 
   useEffect(() => {
     const userData = localStorage.getItem('user') || sessionStorage.getItem('user');
@@ -302,6 +322,117 @@ function AdminReports() {
     return parts.join('_');
   };
 
+  const REPORT_RESPONSIVE_CSS = `
+    html, body { max-width: 100%; }
+    .table-scroll { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    body.report-view {
+      max-width: 100% !important;
+      width: 100%;
+      margin: 0 auto;
+      padding: clamp(12px, 2.2vw, 28px) !important;
+    }
+    body.report-view table,
+    body.report-view .tax-inv-table {
+      min-width: 0 !important;
+      width: 100%;
+    }
+    body.report-view .table-scroll { overflow: visible; }
+    @media (max-width: 1100px) {
+      body.report-view table,
+      body.report-view .tax-inv-table {
+        font-size: 9px;
+      }
+      body.report-view th,
+      body.report-view td {
+        padding: 5px 6px;
+        word-break: break-word;
+      }
+    }
+    @media (max-width: 900px) {
+      body.report-view .tax-inv-top,
+      body.report-view .top,
+      body.report-view .tax-inv-left,
+      body.report-view .left {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 12px;
+      }
+      body.report-view .tax-inv-meta,
+      body.report-view .meta {
+        text-align: left !important;
+        min-width: 0 !important;
+        width: 100%;
+      }
+      body.report-view .tax-inv-title,
+      body.report-view .title { font-size: 1.2rem !important; letter-spacing: 0.02em; }
+      body.report-view .tax-inv-footer-row label { min-width: 0; display: block; margin-bottom: 2px; }
+      body.report-view .tax-inv-contact span { display: inline-block; margin: 0 12px 4px 0; }
+    }
+    @media (max-width: 820px) {
+      body.report-view table,
+      body.report-view .tax-inv-table,
+      body.report-view thead,
+      body.report-view tbody,
+      body.report-view tr,
+      body.report-view th,
+      body.report-view td {
+        display: block;
+        width: 100%;
+        box-sizing: border-box;
+      }
+      body.report-view thead { display: none; }
+      body.report-view table,
+      body.report-view .tax-inv-table {
+        border: none;
+        font-size: 13px;
+      }
+      body.report-view tr {
+        margin: 0 0 12px 0;
+        border: 1px solid #333;
+        border-radius: 8px;
+        overflow: hidden;
+        background: #fff;
+      }
+      body.report-view td {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 12px;
+        text-align: right !important;
+        border: none !important;
+        border-bottom: 1px solid #eee !important;
+        padding: 9px 12px !important;
+      }
+      body.report-view td:last-child { border-bottom: none !important; }
+      body.report-view td::before {
+        content: attr(data-label);
+        font-weight: 700;
+        text-align: left;
+        color: #562731;
+        flex: 0 0 42%;
+        max-width: 42%;
+      }
+      body.report-view td[colspan] {
+        display: block;
+        text-align: center !important;
+      }
+      body.report-view td[colspan]::before { content: none; }
+    }
+  `;
+
+  const closeReportViewer = () => setViewReportHtml('');
+
+  const openReportViewer = (html, title) => {
+    const viewed = String(html).replace(/<body([^>]*)>/i, (_, attrs = '') => {
+      if (/class\s*=/.test(attrs)) {
+        return `<body${attrs.replace(/class\s*=\s*(['"])/i, 'class=$1report-view ')}>`;
+      }
+      return `<body class="report-view"${attrs}>`;
+    });
+    setViewReportTitle(title || 'Report');
+    setViewReportHtml(viewed);
+  };
+
   const downloadHtmlDocument = (html, filename) => {
     try {
       const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
@@ -323,7 +454,7 @@ function AdminReports() {
     }
   };
 
-  const buildSimpleReportHtml = (title, rowsHtml, footerHtml, disclaimer) => `<!DOCTYPE html><html><head><meta charset="utf-8" /><title>${title}</title>
+  const buildSimpleReportHtml = (title, rowsHtml, footerHtml, disclaimer) => `<!DOCTYPE html><html><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>${title}</title>
       <style>
         body { font-family: 'Segoe UI', Tahoma, Arial, sans-serif; max-width: 900px; margin: 0 auto; padding: 24px; font-size: 11px; color:#222; }
         .top { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:20px; border-bottom:2px solid #333; padding-bottom:14px; }
@@ -346,6 +477,7 @@ function AdminReports() {
         th { background:#f0f0f0; }
         .tr { text-align:right; } .tc { text-align:center; } .tl { text-align:left; }
         .footer { border-top:1px solid #ccc; padding-top:10px; margin-top:10px; }
+        ${REPORT_RESPONSIVE_CSS}
       </style></head><body>
       <div class="top">
         <div class="left"><img src="${logo}" class="logo" alt="logo"/>${getPrintCompanyHtml('company')}</div>
@@ -358,7 +490,7 @@ function AdminReports() {
       </div>
       <div class="title">${title}</div>
       <p class="subtitle">Branch / location: <strong>${String(selectedLocationLabel).replace(/</g, '&lt;')}</strong></p>
-      <table>${rowsHtml}</table>
+      <div class="table-scroll"><table>${rowsHtml}</table></div>
       <div class="footer">${footerHtml}</div>
       <p style="margin-top:20px;font-style:italic;color:#666;">${disclaimer}</p>
       </body></html>`;
@@ -369,12 +501,16 @@ function AdminReports() {
       downloadHtmlDocument(html, filename);
       return;
     }
+    if (mode === 'view') {
+      openReportViewer(html, title);
+      return;
+    }
     const w = window.open('', '_blank', 'width=1000,height=700');
     if (!w) {
       Swal.fire({
         icon: 'warning',
         title: 'Popup Blocked',
-        text: 'Please allow popups to open print reports.',
+        text: 'Please allow popups to open reports.',
         confirmButtonColor: colors.primary
       });
       return;
@@ -663,7 +799,7 @@ function AdminReports() {
     const body =
       '<thead><tr><th class="tc">#</th><th class="tl">Date</th><th class="tl">Customer</th><th class="tl">Employee</th><th class="tl">Method</th><th class="tr">Amount (TZS)</th><th class="tl">Status</th></tr></thead><tbody>' +
       (rows.length
-        ? rows.map((p, i) => `<tr><td class="tc">${i + 1}</td><td>${String(p.created_at || '').replace('T', ' ').slice(0, 16)}</td><td>${String(p.customer_name || '—').replace(/</g, '&lt;')}</td><td>${getSalesEmployeeName(p)}</td><td>${String(p.payment_method || '—').replace(/</g, '&lt;')}</td><td class="tr">${Math.round(Number(p.total_amount) || 0).toLocaleString()}</td><td>${p.status || '—'}</td></tr>`).join('')
+        ? rows.map((p, i) => `<tr><td class="tc" data-label="#">${i + 1}</td><td data-label="Date">${String(p.created_at || '').replace('T', ' ').slice(0, 16)}</td><td data-label="Customer">${String(p.customer_name || '—').replace(/</g, '&lt;')}</td><td data-label="Employee">${getSalesEmployeeName(p)}</td><td data-label="Method">${String(p.payment_method || '—').replace(/</g, '&lt;')}</td><td class="tr" data-label="Amount (TZS)">${Math.round(Number(p.total_amount) || 0).toLocaleString()}</td><td data-label="Status">${p.status || '—'}</td></tr>`).join('')
         : '<tr><td colspan="7" class="tc">No sales records found</td></tr>') +
       '</tbody>';
     emitSimpleReport(
@@ -676,6 +812,7 @@ function AdminReports() {
     );
   };
 
+  const handleViewSalesReport = () => handleSalesReport('view');
   const handlePrintSalesReport = () => handleSalesReport('print');
   const handleDownloadSalesReport = () => handleSalesReport('download');
 
@@ -834,17 +971,17 @@ function AdminReports() {
               const recordDate = getRecordDateForReports(p);
               return `
                 <tr>
-                  <td class="tc">${idx + 1}</td>
-                  <td class="tl">${recordDate ? String(recordDate).replace('T', ' ').slice(0, 16) : ''}</td>
-                  <td class="tl">${(p.customer_name || '—').toUpperCase().replace(/</g, '&lt;')}</td>
-                  <td class="tl">${items}</td>
-                  <td class="tc">${paymentType}</td>
-                  <td class="tc">${paymentMethodCell}</td>
-                  <td class="tr">${formatCurrency(amountReceivedSumForPrintRow(p))}</td>
-                  <td class="tr">${formatCurrency(Number(p.discount_amount) || 0)}</td>
-                  <td class="tr">${formatCurrency(amountRemain)}</td>
-                  <td class="tr">${formatCurrency(amountRefunded)}</td>
-                  <td class="tl">${printableStatus}</td>
+                  <td class="tc" data-label="S.No">${idx + 1}</td>
+                  <td class="tl" data-label="Date">${recordDate ? String(recordDate).replace('T', ' ').slice(0, 16) : ''}</td>
+                  <td class="tl" data-label="Customer">${(p.customer_name || '—').toUpperCase().replace(/</g, '&lt;')}</td>
+                  <td class="tl" data-label="Items">${items}</td>
+                  <td class="tc" data-label="Payment type">${paymentType}</td>
+                  <td class="tc" data-label="Payment method">${paymentMethodCell}</td>
+                  <td class="tr" data-label="Amount received (TZS)">${formatCurrency(amountReceivedSumForPrintRow(p))}</td>
+                  <td class="tr" data-label="Discount (TZS)">${formatCurrency(Number(p.discount_amount) || 0)}</td>
+                  <td class="tr" data-label="Amount remain (TZS)">${formatCurrency(amountRemain)}</td>
+                  <td class="tr" data-label="Amount refunded (TZS)">${formatCurrency(amountRefunded)}</td>
+                  <td class="tl" data-label="Status">${printableStatus}</td>
                 </tr>
               `;
             })
@@ -878,12 +1015,12 @@ function AdminReports() {
               const dateStr = e.date ? String(e.date).slice(0, 10) : '—';
               return `
                 <tr>
-                  <td class="tc">${idx + 1}</td>
-                  <td class="tl">${dateStr}</td>
-                  <td class="tl">${description}</td>
-                  <td class="tl">${category}</td>
-                  <td class="tr">${formatCurrency(Number(e.amount) || 0)}</td>
-                  <td class="tl">${status}</td>
+                  <td class="tc" data-label="S.No">${idx + 1}</td>
+                  <td class="tl" data-label="Date">${dateStr}</td>
+                  <td class="tl" data-label="Description">${description}</td>
+                  <td class="tl" data-label="Category">${category}</td>
+                  <td class="tr" data-label="Amount (TZS)">${formatCurrency(Number(e.amount) || 0)}</td>
+                  <td class="tl" data-label="Status">${status}</td>
                 </tr>
               `;
             })
@@ -897,6 +1034,7 @@ function AdminReports() {
       <html>
         <head>
           <meta charset="utf-8" />
+          <meta name="viewport" content="width=device-width, initial-scale=1" />
           <title>Transactions Report - ${BRAND_NAME}</title>
           <style>
             * { box-sizing: border-box; }
@@ -1011,6 +1149,7 @@ function AdminReports() {
             }
             @media print { body { padding: 16px; } .tax-inv-logo { max-height: 52px; } }
             ${PRINT_LOGO_CSS}
+            ${REPORT_RESPONSIVE_CSS}
           </style>
         </head>
         <body>
@@ -1032,16 +1171,20 @@ function AdminReports() {
           <h1 class="tax-inv-title">TRANSACTIONS REPORT — ${String(locationLabel).replace(/</g, '&lt;').toUpperCase()}</h1>
           <p class="tax-inv-subtitle">Branch / location: <strong>${String(locationLabel).replace(/</g, '&lt;')}</strong></p>
 
-          <table class="tax-inv-table">
-            ${tableHeader}
-            ${rowsHtml}
-          </table>
+          <div class="table-scroll">
+            <table class="tax-inv-table">
+              ${tableHeader}
+              ${rowsHtml}
+            </table>
+          </div>
 
           <h2 class="tax-inv-section-title">Today's Expenses</h2>
-          <table class="tax-inv-table">
-            ${expensesTableHeader}
-            ${expensesRowsHtml}
-          </table>
+          <div class="table-scroll">
+            <table class="tax-inv-table">
+              ${expensesTableHeader}
+              ${expensesRowsHtml}
+            </table>
+          </div>
 
           <div class="tax-inv-footer">
             ${summaryScopeNote}
@@ -1075,18 +1218,25 @@ function AdminReports() {
       return;
     }
 
+    if (mode === 'view') {
+      openReportViewer(html, `TRANSACTIONS REPORT — ${locationLabel}`);
+      return;
+    }
+
     openPrintWindowWithLogo(html, {
+      autoPrint: true,
       onBlocked: () => {
         Swal.fire({
           icon: 'warning',
           title: 'Popup Blocked',
-          text: 'Please allow popups to open print reports.',
+          text: 'Please allow popups to open reports.',
           confirmButtonColor: colors.primary
         });
       }
     });
   };
 
+  const handleViewTransactionsReport = () => handleTransactionsReport('view');
   const handlePrintTransactionsReport = () => handleTransactionsReport('print');
   const handleDownloadTransactionsReport = () => handleTransactionsReport('download');
 
@@ -1102,7 +1252,7 @@ function AdminReports() {
     const body =
       '<thead><tr><th class="tc">#</th><th class="tl">Date</th><th class="tl">Customer</th><th class="tl">Status</th><th class="tr">Received (TZS)</th><th class="tr">Remain (TZS)</th></tr></thead><tbody>' +
       (rows.length
-        ? rows.map((p, i) => `<tr><td class="tc">${i + 1}</td><td>${String(p.updated_at || p.created_at || '').replace('T', ' ').slice(0, 16)}</td><td>${String(p.customer_name || '—').replace(/</g, '&lt;')}</td><td>${p.status || '—'}</td><td class="tr">${Math.round(Number(p.amount_received) || 0).toLocaleString()}</td><td class="tr">${Math.round(Math.max(0, Number(p.amount_remain) || 0)).toLocaleString()}</td></tr>`).join('')
+        ? rows.map((p, i) => `<tr><td class="tc" data-label="#">${i + 1}</td><td data-label="Date">${String(p.updated_at || p.created_at || '').replace('T', ' ').slice(0, 16)}</td><td data-label="Customer">${String(p.customer_name || '—').replace(/</g, '&lt;')}</td><td data-label="Status">${p.status || '—'}</td><td class="tr" data-label="Received (TZS)">${Math.round(Number(p.amount_received) || 0).toLocaleString()}</td><td class="tr" data-label="Remain (TZS)">${Math.round(Math.max(0, Number(p.amount_remain) || 0)).toLocaleString()}</td></tr>`).join('')
         : '<tr><td colspan="6" class="tc">No loan records found</td></tr>') +
       '</tbody>';
     emitSimpleReport(
@@ -1115,6 +1265,7 @@ function AdminReports() {
     );
   };
 
+  const handleViewLoansReport = () => handleLoansReport('view');
   const handlePrintLoansReport = () => handleLoansReport('print');
   const handleDownloadLoansReport = () => handleLoansReport('download');
 
@@ -1382,6 +1533,44 @@ function AdminReports() {
             ))}
           </section>
 
+          <section className="admin-reports-print-section admin-reports-view-section">
+            <div className="admin-reports-section-head">
+              <h2>
+                <FaEye aria-hidden /> View reports
+              </h2>
+              <p>Preview sales, transactions, or loans documents using the current search and date filters.</p>
+            </div>
+            <div className="admin-reports-print-grid">
+              <button type="button" className="admin-reports-print-card admin-reports-view-card sales" onClick={handleViewSalesReport}>
+                <span className="admin-reports-print-icon">
+                  <FaEye />
+                </span>
+                <span className="admin-reports-print-title">Sales Report</span>
+                <span className="admin-reports-print-desc">View approved and pending sales for the selected period.</span>
+              </button>
+              <button
+                type="button"
+                className="admin-reports-print-card admin-reports-view-card transactions"
+                onClick={handleViewTransactionsReport}
+              >
+                <span className="admin-reports-print-icon">
+                  <FaEye />
+                </span>
+                <span className="admin-reports-print-title">Transactions Report</span>
+                <span className="admin-reports-print-desc">
+                  View items, remain, refunds, expenses, and income summary.
+                </span>
+              </button>
+              <button type="button" className="admin-reports-print-card admin-reports-view-card loans" onClick={handleViewLoansReport}>
+                <span className="admin-reports-print-icon">
+                  <FaEye />
+                </span>
+                <span className="admin-reports-print-title">Loans Report</span>
+                <span className="admin-reports-print-desc">View outstanding and active loan balances.</span>
+              </button>
+            </div>
+          </section>
+
           <section className="admin-reports-print-section">
             <div className="admin-reports-section-head">
               <h2>
@@ -1493,6 +1682,29 @@ function AdminReports() {
           </section>
         </div>
       </div>
+      {viewReportHtml ? (
+        <div
+          className="admin-report-viewer-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="admin-report-viewer-title"
+          onClick={closeReportViewer}
+        >
+          <div className="admin-report-viewer" onClick={(e) => e.stopPropagation()}>
+            <header className="admin-report-viewer-header">
+              <h2 id="admin-report-viewer-title">{viewReportTitle}</h2>
+              <button type="button" className="admin-report-viewer-close" onClick={closeReportViewer}>
+                <FaTimes aria-hidden /> Close
+              </button>
+            </header>
+            <iframe
+              className="admin-report-viewer-frame"
+              title={viewReportTitle}
+              srcDoc={viewReportHtml}
+            />
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -95,7 +95,7 @@ export const PRINT_LOGO_CSS = `
 `;
 
 /** Open a print window and wait for images (logo) before calling print(). */
-export function openPrintWindowWithLogo(html, { onBlocked } = {}) {
+export function openPrintWindowWithLogo(html, { onBlocked, autoPrint = true } = {}) {
   const w = window.open('', '_blank', 'width=1000,height=700');
   if (!w) {
     if (typeof onBlocked === 'function') onBlocked();
@@ -108,6 +108,7 @@ export function openPrintWindowWithLogo(html, { onBlocked } = {}) {
   w.focus();
 
   const triggerPrint = () => {
+    if (!autoPrint) return;
     try {
       w.focus();
       w.print();
