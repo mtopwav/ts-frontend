@@ -609,22 +609,36 @@ function ManagerReports() {
                 <th class="tc">Payment type</th>
                 <th class="tc">Payment method</th>
                 <th class="tr">Amount received (TZS)</th>
+                <th class="tr">Discount (TZS)</th>
                 <th class="tr">Amount remain (TZS)</th>
                 <th class="tr">Amount refunded (TZS)</th>
                 <th class="tl">Status</th>
               </tr>
             </thead>`;
 
+    const formatItemWithQty = (name, qty) => {
+      const n = String(name || 'Unknown').replace(/</g, '&lt;');
+      const q = Math.max(0, parseInt(qty, 10) || 0);
+      return `${n} (${q})`;
+    };
+
     const rowsHtml =
       printedRows.length === 0
-        ? '<tbody><tr><td colspan="10" style="text-align:center;padding:12px;">No transactions found</td></tr></tbody>'
+        ? '<tbody><tr><td colspan="11" style="text-align:center;padding:12px;">No transactions found</td></tr></tbody>'
         : '<tbody>' +
           printedRows
             .map((p, idx) => {
               const items =
                 p.items && p.items.length > 0
-                  ? p.items.map((item) => (item.sparepart_name || 'Unknown').replace(/</g, '&lt;')).join('<br />')
-                  : (p.sparepart_name || '—').replace(/</g, '&lt;');
+                  ? p.items
+                      .map((item) =>
+                        formatItemWithQty(
+                          item.sparepart_name || 'Unknown',
+                          item.original_quantity ?? item.quantity
+                        )
+                      )
+                      .join('<br />')
+                  : formatItemWithQty(p.sparepart_name || '—', p.quantity);
               const paymentType = String(p.payment_type || '—').replace(/</g, '&lt;');
               const paymentMethodCell = String(paymentMethodForPrintRow(p) || '—')
                 .replace(/</g, '&lt;')
@@ -652,6 +666,7 @@ function ManagerReports() {
                   <td class="tc">${paymentType}</td>
                   <td class="tc">${paymentMethodCell}</td>
                   <td class="tr">${formatCurrency(amountReceivedSumForPrintRow(p))}</td>
+                  <td class="tr">${formatCurrency(Number(p.discount_amount) || 0)}</td>
                   <td class="tr">${formatCurrency(amountRemain)}</td>
                   <td class="tr">${formatCurrency(amountRefunded)}</td>
                   <td class="tl">${printableStatus}</td>

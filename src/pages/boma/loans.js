@@ -14,7 +14,6 @@ import {
   FaBox,
   FaEdit,
   FaEye,
-  FaTrashAlt,
   FaCreditCard,
   FaPrint,
   FaDownload,
@@ -33,7 +32,7 @@ import './manager-layout.css';
 import './loans.css';
 import './transactions.css';
 import logo from '../../images/logo.png';
-import { getPayments, updatePaymentDetails, createLoanFromPayment, deletePayment, getSpareParts, returnPayment } from '../../services/api';
+import { getPayments, updatePaymentDetails, createLoanFromPayment, getSpareParts, returnPayment } from '../../services/api';
 import { getCurrentDateTime } from '../../utils/dateTime';
 import { useTranslation } from '../../utils/useTranslation';
 import { canAccessBranch } from '../../utils/branchAuth';
@@ -96,7 +95,6 @@ function ManagerLoans() {
   const [addLoanAmountRemainInput, setAddLoanAmountRemainInput] = useState('');
   const [addLoanStatus, setAddLoanStatus] = useState('Pending');
   const [addLoanSaving, setAddLoanSaving] = useState(false);
-  const [deletingPaymentId, setDeletingPaymentId] = useState(null);
   const [showReturnModal, setShowReturnModal] = useState(false);
   const [returnAmountInput, setReturnAmountInput] = useState('');
   const [returnItems, setReturnItems] = useState([]);
@@ -1239,47 +1237,6 @@ function ManagerLoans() {
     }
   };
 
-  const handleDeleteLoan = async (payment) => {
-    if (!payment?.id) return;
-
-    const result = await Swal.fire({
-      icon: 'warning',
-      title: 'Delete Loan',
-      text: `Are you sure you want to delete loan #${payment.id}?`,
-      showCancelButton: true,
-      confirmButtonColor: colors.error,
-      cancelButtonColor: colors.textMuted,
-      confirmButtonText: 'Yes, delete',
-      cancelButtonText: t.cancel || 'Cancel',
-    });
-    if (!result.isConfirmed) return;
-
-    try {
-      setDeletingPaymentId(payment.id);
-      const response = await deletePayment(payment.id);
-      if (!response?.success) {
-        throw new Error(response?.message || 'Failed to delete loan.');
-      }
-      setPayments((prev) => prev.filter((p) => p.id !== payment.id));
-      Swal.fire({
-        icon: 'success',
-        title: 'Deleted',
-        text: 'Loan deleted successfully.',
-        timer: 1800,
-        showConfirmButton: false,
-      });
-    } catch (error) {
-      Swal.fire({
-        icon: 'error',
-        title: t.error || 'Error',
-        text: error.message || 'Failed to delete loan.',
-        confirmButtonColor: colors.primary,
-      });
-    } finally {
-      setDeletingPaymentId(null);
-    }
-  };
-
   const handleAddLoan = async () => {
     if (!addLoanPaymentId) {
       Swal.fire({
@@ -1955,15 +1912,6 @@ function ManagerLoans() {
                               >
                                 <FaDownload className="action-icon" />
                                 <span className="action-text">Download</span>
-                              </button>
-                              <button
-                                className="action-btn delete"
-                                title={disabledTitle || 'Delete'}
-                                onClick={() => handleDeleteLoan(payment)}
-                                disabled={actionsDisabled || deletingPaymentId === payment.id}
-                              >
-                                <FaTrashAlt className="action-icon" />
-                                <span className="action-text">{deletingPaymentId === payment.id ? 'Deleting...' : (t.delete || 'Delete')}</span>
                               </button>
                             </div>
                           </td>

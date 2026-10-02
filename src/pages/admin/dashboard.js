@@ -1,5 +1,5 @@
 import { colors } from '../../utils/colors';
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useResponsiveSidebar } from '../../utils/useResponsiveSidebar';
 import SidebarBackdrop from '../../components/SidebarBackdrop';
 import { useNavigate, Link } from 'react-router-dom';
@@ -18,7 +18,10 @@ import {
   FaCalendarAlt,
   FaMoneyBillWave,
   FaBell,
-  FaWallet
+  FaWallet,
+  FaMapMarkerAlt,
+  FaChevronDown,
+  FaFilter
 } from 'react-icons/fa';
 import './dashboard.css';
 import logo from '../../images/logo1.png';
@@ -31,6 +34,7 @@ import { getPayments, getSpareParts, getCustomers } from '../../services/api';
 import Swal from 'sweetalert2';
 import { PageLoader } from '../../components/LoadingSpinner';
 import { BRAND_NAME, DEFAULT_SUPPLIER } from '../../utils/brand';
+import { BRANCH_BOMA, BRANCH_GEITA } from '../../utils/branchLocations';
 
 function Dashboard() {
   const navigate = useNavigate();
@@ -40,19 +44,13 @@ function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [currentDateTime, setCurrentDateTime] = useState('');
   const [notificationCount, setNotificationCount] = useState(0);
-  const [totalSales, setTotalSales] = useState(0);
   const [payments, setPayments] = useState([]);
-  const [totalParts, setTotalParts] = useState(0);
-  const [totalCustomers, setTotalCustomers] = useState(0);
-  const [totalOrders, setTotalOrders] = useState(0);
-  const [yesterdaySales, setYesterdaySales] = useState(0);
-  const [lastWeekParts, setLastWeekParts] = useState(0);
-  const [lastWeekOrders, setLastWeekOrders] = useState(0);
-  const [lastWeekCustomers, setLastWeekCustomers] = useState(0);
+  const [customersList, setCustomersList] = useState([]);
   const [recentActivities, setRecentActivities] = useState([]);
-  const [todaySalesCount, setTodaySalesCount] = useState(0);
-  const [todayPendingOrdersCount, setTodayPendingOrdersCount] = useState(0);
   const [sparePartsList, setSparePartsList] = useState([]);
+  const [locationFilter, setLocationFilter] = useState('');
+  const [locationMenuOpen, setLocationMenuOpen] = useState(false);
+  const locationSelectRef = useRef(null);
 
   useEffect(() => {
     // Get user data from storage
@@ -116,96 +114,10 @@ function Dashboard() {
         const response = await getPayments();
         if (response.success && response.payments) {
           setPayments(response.payments);
-          
-          // Count total orders (all payments)
-          setTotalOrders(response.payments.length);
-          
-          // Get today's and yesterday's dates for filtering
-          const today = new Date();
-          today.setHours(0, 0, 0, 0);
-          
-          const yesterday = new Date(today);
-          yesterday.setDate(yesterday.getDate() - 1);
-          
-          // Get last week's date (7 days ago)
-          const lastWeek = new Date(today);
-          lastWeek.setDate(lastWeek.getDate() - 7);
-          
-          // Calculate today's sales from approved transactions only
-          const todayApprovedPayments = response.payments.filter(p => {
-            if (!p.status || p.status.trim() !== 'Approved') {
-              return false;
-            }
-            if (!p.created_at) return false;
-            const paymentDate = new Date(p.created_at);
-            paymentDate.setHours(0, 0, 0, 0);
-            return paymentDate.getTime() === today.getTime();
-          });
-          
-          const salesTotal = todayApprovedPayments.reduce(
-            (sum, p) => {
-              // Use amount_received when available; fallback to total_amount
-              const amount = parseFloat(p.amount_received ?? p.total_amount) || 0;
-              return sum + amount;
-            },
-            0
-          );
-          setTotalSales(salesTotal);
-          setTodaySalesCount(todayApprovedPayments.length);
-          
-          // Count today's pending orders
-          const todayPendingPayments = response.payments.filter(p => {
-            // Check if status is Pending or empty/null (not Approved or Rejected)
-            const status = p.status ? p.status.trim() : '';
-            if (status === 'Approved' || status === 'Rejected') {
-              return false;
-            }
-            // Check if created today
-            if (!p.created_at) return false;
-            const paymentDate = new Date(p.created_at);
-            paymentDate.setHours(0, 0, 0, 0);
-            return paymentDate.getTime() === today.getTime();
-          });
-          setTodayPendingOrdersCount(todayPendingPayments.length);
-          
-          // Calculate yesterday's sales for comparison
-          const yesterdayApprovedPayments = response.payments.filter(p => {
-            if (!p.status || p.status.trim() !== 'Approved') {
-              return false;
-            }
-            if (!p.created_at) return false;
-            const paymentDate = new Date(p.created_at);
-            paymentDate.setHours(0, 0, 0, 0);
-            return paymentDate.getTime() === yesterday.getTime();
-          });
-          
-          const yesterdaySalesTotal = yesterdayApprovedPayments.reduce(
-            (sum, p) => {
-              // Use amount_received when available; fallback to total_amount
-              const amount = parseFloat(p.amount_received ?? p.total_amount) || 0;
-              return sum + amount;
-            },
-            0
-          );
-          setYesterdaySales(yesterdaySalesTotal);
-          
-          // Count last week's orders
-          const lastWeekPayments = response.payments.filter(p => {
-            if (!p.created_at) return false;
-            const paymentDate = new Date(p.created_at);
-            paymentDate.setHours(0, 0, 0, 0);
-            return paymentDate.getTime() >= lastWeek.getTime() && paymentDate.getTime() < today.getTime();
-          });
-          setLastWeekOrders(lastWeekPayments.length);
         }
       } catch (error) {
         console.error('Error fetching payments:', error);
-        setTotalSales(0);
-        setTotalOrders(0);
-        setYesterdaySales(0);
-        setLastWeekOrders(0);
-        setTodaySalesCount(0);
-        setTodayPendingOrdersCount(0);
+        setPayments([]);
       }
     };
     fetchPayments();
@@ -215,31 +127,11 @@ function Dashboard() {
       try {
         const response = await getSpareParts();
         if (response.success && response.spareParts) {
-          const spareParts = response.spareParts;
-
-          // Count total spare parts
-          setTotalParts(spareParts.length);
-          setSparePartsList(spareParts);
-          
-          // Calculate last week's parts count (parts created before 7 days ago)
-          const today = new Date();
-          today.setHours(0, 0, 0, 0);
-          const lastWeek = new Date(today);
-          lastWeek.setDate(lastWeek.getDate() - 7);
-          
-          const lastWeekPartsCount = spareParts.filter(part => {
-            if (!part.created_at && !part.date_added) return false;
-            const partDate = new Date(part.created_at || part.date_added);
-            partDate.setHours(0, 0, 0, 0);
-            return partDate.getTime() < lastWeek.getTime();
-          }).length;
-          setLastWeekParts(lastWeekPartsCount);
+          setSparePartsList(response.spareParts);
         }
       } catch (error) {
         console.error('Error fetching spare parts:', error);
-        setTotalParts(0);
         setSparePartsList([]);
-        setLastWeekParts(0);
       }
     };
     fetchSpareParts();
@@ -249,27 +141,11 @@ function Dashboard() {
       try {
         const response = await getCustomers();
         if (response.success && response.customers) {
-          // Count total customers
-          setTotalCustomers(response.customers.length);
-          
-          // Calculate last week's customers count (customers registered before 7 days ago)
-          const today = new Date();
-          today.setHours(0, 0, 0, 0);
-          const lastWeek = new Date(today);
-          lastWeek.setDate(lastWeek.getDate() - 7);
-          
-          const lastWeekCustomersCount = response.customers.filter(customer => {
-            if (!customer.created_at && !customer.registered_date) return false;
-            const customerDate = new Date(customer.created_at || customer.registered_date);
-            customerDate.setHours(0, 0, 0, 0);
-            return customerDate.getTime() < lastWeek.getTime();
-          }).length;
-          setLastWeekCustomers(lastWeekCustomersCount);
+          setCustomersList(response.customers);
         }
       } catch (error) {
         console.error('Error fetching customers:', error);
-        setTotalCustomers(0);
-        setLastWeekCustomers(0);
+        setCustomersList([]);
       }
     };
     fetchCustomers();
@@ -280,6 +156,162 @@ function Dashboard() {
       window.removeEventListener('unviewedOperationsChanged', updateNotificationCount);
     };
   }, [navigate]);
+
+  useEffect(() => {
+    if (!locationMenuOpen) return undefined;
+    const handleClickOutside = (event) => {
+      if (locationSelectRef.current && !locationSelectRef.current.contains(event.target)) {
+        setLocationMenuOpen(false);
+      }
+    };
+    const handleEscape = (event) => {
+      if (event.key === 'Escape') setLocationMenuOpen(false);
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [locationMenuOpen]);
+
+  const locationOptions = useMemo(
+    () => [
+      { value: '', label: t.allBranches || 'All Branches', hint: 'Boma & Geita' },
+      { value: BRANCH_BOMA, label: t.bomaBranch || 'Boma Branch', hint: 'Boma data only' },
+      { value: BRANCH_GEITA, label: t.geitaBranch || 'Geita Branch', hint: 'Geita data only' },
+    ],
+    [t]
+  );
+
+  const selectedLocationOption =
+    locationOptions.find((opt) => opt.value === locationFilter) || locationOptions[0];
+
+  const matchesLocation = (record) => {
+    if (!locationFilter) return true;
+    return (
+      String(record?.location || '').trim().toLowerCase() ===
+      String(locationFilter).trim().toLowerCase()
+    );
+  };
+
+  const filteredPayments = useMemo(
+    () => payments.filter(matchesLocation),
+    [payments, locationFilter]
+  );
+
+  const filteredSpareParts = useMemo(
+    () => sparePartsList.filter(matchesLocation),
+    [sparePartsList, locationFilter]
+  );
+
+  const filteredCustomers = useMemo(
+    () => customersList.filter(matchesLocation),
+    [customersList, locationFilter]
+  );
+
+  const filteredRecentActivities = useMemo(
+    () => recentActivities.filter(matchesLocation),
+    [recentActivities, locationFilter]
+  );
+
+  const paymentStats = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const lastWeek = new Date(today);
+    lastWeek.setDate(lastWeek.getDate() - 7);
+
+    const todayApproved = filteredPayments.filter((p) => {
+      if (!p.status || p.status.trim() !== 'Approved') return false;
+      if (!p.created_at) return false;
+      const paymentDate = new Date(p.created_at);
+      paymentDate.setHours(0, 0, 0, 0);
+      return paymentDate.getTime() === today.getTime();
+    });
+
+    const todaySales = todayApproved.reduce((sum, p) => {
+      const amount = parseFloat(p.amount_received ?? p.total_amount) || 0;
+      return sum + amount;
+    }, 0);
+
+    const todayPending = filteredPayments.filter((p) => {
+      const status = p.status ? p.status.trim() : '';
+      if (status === 'Approved' || status === 'Rejected') return false;
+      if (!p.created_at) return false;
+      const paymentDate = new Date(p.created_at);
+      paymentDate.setHours(0, 0, 0, 0);
+      return paymentDate.getTime() === today.getTime();
+    });
+
+    const yesterdayApproved = filteredPayments.filter((p) => {
+      if (!p.status || p.status.trim() !== 'Approved') return false;
+      if (!p.created_at) return false;
+      const paymentDate = new Date(p.created_at);
+      paymentDate.setHours(0, 0, 0, 0);
+      return paymentDate.getTime() === yesterday.getTime();
+    });
+
+    const yesterdaySales = yesterdayApproved.reduce((sum, p) => {
+      const amount = parseFloat(p.amount_received ?? p.total_amount) || 0;
+      return sum + amount;
+    }, 0);
+
+    const lastWeekOrders = filteredPayments.filter((p) => {
+      if (!p.created_at) return false;
+      const paymentDate = new Date(p.created_at);
+      paymentDate.setHours(0, 0, 0, 0);
+      return paymentDate.getTime() >= lastWeek.getTime() && paymentDate.getTime() < today.getTime();
+    }).length;
+
+    return {
+      totalSales: todaySales,
+      totalOrders: filteredPayments.length,
+      yesterdaySales,
+      lastWeekOrders,
+      todaySalesCount: todayApproved.length,
+      todayPendingOrdersCount: todayPending.length,
+    };
+  }, [filteredPayments]);
+
+  const partsStats = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const lastWeek = new Date(today);
+    lastWeek.setDate(lastWeek.getDate() - 7);
+
+    const lastWeekParts = filteredSpareParts.filter((part) => {
+      if (!part.created_at && !part.date_added) return false;
+      const partDate = new Date(part.created_at || part.date_added);
+      partDate.setHours(0, 0, 0, 0);
+      return partDate.getTime() < lastWeek.getTime();
+    }).length;
+
+    return {
+      totalParts: filteredSpareParts.length,
+      lastWeekParts,
+    };
+  }, [filteredSpareParts]);
+
+  const customersStats = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const lastWeek = new Date(today);
+    lastWeek.setDate(lastWeek.getDate() - 7);
+
+    const lastWeekCustomers = filteredCustomers.filter((customer) => {
+      if (!customer.created_at && !customer.registered_date) return false;
+      const customerDate = new Date(customer.created_at || customer.registered_date);
+      customerDate.setHours(0, 0, 0, 0);
+      return customerDate.getTime() < lastWeek.getTime();
+    }).length;
+
+    return {
+      totalCustomers: filteredCustomers.length,
+      lastWeekCustomers,
+    };
+  }, [filteredCustomers]);
 
   // Time ago helper (uses t for language)
   const getTimeAgo = (dateString) => {
@@ -329,6 +361,7 @@ function Dashboard() {
               paymentId: p.id,
               status: p.status,
               amount: formatCurrencyLocal(parseFloat(p.total_amount) || 0),
+              location: p.location || '',
               date: new Date(p.approved_at || p.created_at)
             }));
           activities.push(...operations);
@@ -343,6 +376,7 @@ function Dashboard() {
               id: `part_${part.id}`,
               type: 'Product',
               partName: part.part_name || 'Unknown',
+              location: part.location || '',
               date: new Date(part.created_at || part.date_added)
             }));
           activities.push(...recentParts);
@@ -357,6 +391,7 @@ function Dashboard() {
               id: `customer_${customer.id}`,
               type: 'Customer',
               customerName: customer.name || 'Unknown',
+              location: customer.location || '',
               date: new Date(customer.created_at || customer.registered_date)
             }));
           activities.push(...recentCustomers);
@@ -381,12 +416,12 @@ function Dashboard() {
       return Number.isNaN(n) ? 0 : n;
     };
     let buying = 0;
-    for (const part of sparePartsList) {
+    for (const part of filteredSpareParts) {
       const qty = Number(part.quantity) || 0;
       buying += qty * parsePrice(part.buying_price ?? part.buyingPrice);
     }
     return buying;
-  }, [sparePartsList]);
+  }, [filteredSpareParts]);
 
   /**
    * Amount received + profit after sale generation.
@@ -436,7 +471,7 @@ function Dashboard() {
     let received = 0;
     let profit = 0;
 
-    for (const p of payments) {
+    for (const p of filteredPayments) {
       if (String(p.status || '').trim() !== 'Approved') continue;
       received += parseNum(p.amount_received);
 
@@ -465,13 +500,12 @@ function Dashboard() {
       received,
       profit: Math.round(profit * 100) / 100,
     };
-  }, [payments, sparePartsList]);
+  }, [filteredPayments, sparePartsList]);
 
-  /** Total sold-out quantity across all spare parts. */
+  /** Total sold-out quantity across filtered spare parts. */
   const totalSoldOutSpareparts = useMemo(() => {
-    return sparePartsList.reduce((sum, part) => sum + (Number(part.soldout_quantity) || 0), 0);
-  }, [sparePartsList]);
-
+    return filteredSpareParts.reduce((sum, part) => sum + (Number(part.soldout_quantity) || 0), 0);
+  }, [filteredSpareParts]);
   // Show loading while checking authentication
   if (loading) {
     return <PageLoader message={t.loading || 'Loading...'} />;
@@ -541,10 +575,13 @@ function Dashboard() {
   };
 
   // Calculate percentage changes
-  const salesChange = calculatePercentageChange(totalSales, yesterdaySales);
-  const partsChange = calculatePercentageChange(totalParts, lastWeekParts);
-  const ordersChange = calculatePercentageChange(totalOrders, lastWeekOrders);
-  const customersChange = calculatePercentageChange(totalCustomers, lastWeekCustomers);
+  const salesChange = calculatePercentageChange(paymentStats.totalSales, paymentStats.yesterdaySales);
+  const partsChange = calculatePercentageChange(partsStats.totalParts, partsStats.lastWeekParts);
+  const ordersChange = calculatePercentageChange(paymentStats.totalOrders, paymentStats.lastWeekOrders);
+  const customersChange = calculatePercentageChange(
+    customersStats.totalCustomers,
+    customersStats.lastWeekCustomers
+  );
 
   const receivedLineRetail = `${t.totalReceived || 'Total received'}: ${formatCurrency(transactionMetrics.received)}`;
   const profitLine = `${t.profit || 'Profit'}: ${formatCurrency(transactionMetrics.profit)}`;
@@ -553,7 +590,7 @@ function Dashboard() {
   const stats = [
     {
       title: t.todaySales || 'Today\'s Sales',
-      value: formatCurrency(totalSales),
+      value: formatCurrency(paymentStats.totalSales),
       change: salesChange.value,
       changePositive: salesChange.isPositive,
       icon: <FaMoneyBillAlt />,
@@ -561,7 +598,7 @@ function Dashboard() {
     },
     {
       title: t.totalParts,
-      value: totalParts.toLocaleString('en-TZ'),
+      value: partsStats.totalParts.toLocaleString('en-TZ'),
       change: partsChange.value,
       changePositive: partsChange.isPositive,
       icon: <FaBox />,
@@ -569,7 +606,7 @@ function Dashboard() {
     },
     {
       title: t.totalOrders,
-      value: totalOrders.toLocaleString('en-TZ'),
+      value: paymentStats.totalOrders.toLocaleString('en-TZ'),
       change: ordersChange.value,
       changePositive: ordersChange.isPositive,
       icon: <FaShoppingCart />,
@@ -577,7 +614,7 @@ function Dashboard() {
     },
     {
       title: t.customers,
-      value: totalCustomers.toLocaleString('en-TZ'),
+      value: customersStats.totalCustomers.toLocaleString('en-TZ'),
       change: customersChange.value,
       changePositive: customersChange.isPositive,
       icon: <FaUsers />,
@@ -604,7 +641,6 @@ function Dashboard() {
       color: 'warning'
     }
   ];
-
   // Recent activities are now fetched from the database
 
   // Debug: Log when component renders
@@ -769,9 +805,57 @@ function Dashboard() {
 
         {/* Dashboard Content */}
         <div className="dashboard-content">
+          <div className="dashboard-location-bar">
+            <div
+              className={`dashboard-location-dropdown${locationFilter ? ' is-active' : ''}${
+                locationMenuOpen ? ' is-open' : ''
+              }`}
+              ref={locationSelectRef}
+            >
+              <button
+                type="button"
+                id="admin-dashboard-location-filter"
+                className="dashboard-location-btn"
+                onClick={() => setLocationMenuOpen((open) => !open)}
+                aria-haspopup="listbox"
+                aria-expanded={locationMenuOpen}
+              >
+                <FaFilter className="dashboard-location-btn-icon" aria-hidden="true" />
+                <FaMapMarkerAlt className="dashboard-location-btn-icon" aria-hidden="true" />
+                <span className="dashboard-location-btn-label">{selectedLocationOption.label}</span>
+                <FaChevronDown className="dashboard-location-chevron" aria-hidden="true" />
+              </button>
+              {locationMenuOpen ? (
+                <ul className="dashboard-location-menu" role="listbox">
+                  {locationOptions.map((opt) => (
+                    <li key={opt.value || 'all'} role="presentation">
+                      <button
+                        type="button"
+                        role="option"
+                        aria-selected={opt.value === locationFilter}
+                        className={`dashboard-location-option${
+                          opt.value === locationFilter ? ' is-selected' : ''
+                        }`}
+                        onClick={() => {
+                          setLocationFilter(opt.value);
+                          setLocationMenuOpen(false);
+                        }}
+                      >
+                        <FaMapMarkerAlt className="dashboard-location-option-icon" aria-hidden="true" />
+                        <span className="dashboard-location-option-text">
+                          <span className="dashboard-location-option-label">{opt.label}</span>
+                          <span className="dashboard-location-option-hint">{opt.hint}</span>
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+            </div>
+          </div>
+
           {/* Statistics Cards */}
-          <div className="stats-grid">
-            {stats.map((stat, index) => (
+          <div className="stats-grid">            {stats.map((stat, index) => (
               <div key={index} className={`stat-card stat-${stat.color}`}>
                 <div className="stat-info">
                   <h3 className="stat-title">{stat.title}</h3>
@@ -805,7 +889,7 @@ function Dashboard() {
                 <h2>{t.recentOperations}</h2>
               </div>
               <div className="card-body">
-                {recentActivities.length === 0 ? (
+                {filteredRecentActivities.length === 0 ? (
                   <div style={{ 
                     textAlign: 'center', 
                     padding: '40px 20px', 
@@ -816,7 +900,7 @@ function Dashboard() {
                   </div>
                 ) : (
                   <ul className="activity-list">
-                    {recentActivities.map(activity => {
+                    {filteredRecentActivities.map(activity => {
                       const description = activity.type === 'Sale'
                         ? (activity.status === 'Approved' ? t.paymentApproved.replace('%s', activity.paymentId) : t.paymentRejected.replace('%s', activity.paymentId))
                         : activity.type === 'Product'
@@ -878,13 +962,13 @@ function Dashboard() {
           <div className="summary-grid">
             <div className="summary-card">
               <h3>{t.todaySales}</h3>
-              <p className="summary-value">{todaySalesCount}</p>
-              <span className="summary-label">{todaySalesCount === 1 ? t.sale : t.sales} {t.approved.toLowerCase()}</span>
+              <p className="summary-value">{paymentStats.todaySalesCount}</p>
+              <span className="summary-label">{paymentStats.todaySalesCount === 1 ? t.sale : t.sales} {t.approved.toLowerCase()}</span>
             </div>
             <div className="summary-card">
               <h3>{t.pending} {t.totalOrders}</h3>
-              <p className="summary-value">{todayPendingOrdersCount}</p>
-              <span className="summary-label">{todayPendingOrdersCount === 1 ? t.order : t.orders} {t.pending.toLowerCase()}</span>
+              <p className="summary-value">{paymentStats.todayPendingOrdersCount}</p>
+              <span className="summary-label">{paymentStats.todayPendingOrdersCount === 1 ? t.order : t.orders} {t.pending.toLowerCase()}</span>
             </div>
           </div>
         </div>
